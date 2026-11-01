@@ -80,7 +80,7 @@ files = ['keyWidget.js', 'layouts.js', 'inputController.js', 'keyboardUI.js', 'i
 header = "import GObject from 'gi://GObject';\nimport St from 'gi://St';\nimport Clutter from 'gi://Clutter';\nimport GLib from 'gi://GLib';\nimport Gio from 'gi://Gio';\nimport * as Main from 'resource:///org/gnome/shell/ui/main.js';\nimport * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';\nimport * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';\nimport * as KeyboardModule from 'resource:///org/gnome/shell/ui/keyboard.js';\n\n"
 parts = [header]
 for f in files:
-    text = open(os.path.join(src, f)).read()
+    text = open(os.path.join(src, 'src', f)).read()
     lines = []
     for line in text.splitlines():
         if re.match(r'^\s*import\s', line):
