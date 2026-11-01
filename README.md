@@ -7,22 +7,7 @@ A vibecoded on-screen keyboard for GNOME Shell, created to make Linux life easie
 ![lvOSK keyboard](img/screenshot1.png)
 
 
-## Features
 
-- Windows 11-style 4-row layout with proper key sizing and gaps
-- Bigger keys, bigger bottom margin, darker alphabet keys
-- Character callout above the pressed key
-- Alternate-key hints with long-press to type the secondary character
-- Phone-style numeric keypad that slides in from the right
-- Noticeably lighter pressed-key color
-- macOS-style soft key click sound
-- Settings menu: key size (Compact / Default / Large), sound feedback, auto-show on text focus, numpad by default; follows system light/dark theme
-- Touch-triggered pill button in the GNOME top panel (hidden until you touch the screen)
-- Compact mode by default
-- Input preview bubble above the keyboard
-- Auto-show on text focus in GTK apps; touch detection works in Chrome and other apps
-- Hot-reloadable (no need to restart GNOME Shell after edits)
-- Persists settings to `~/.config/lvosk/settings.json`
 
 ## Requirements
 
@@ -51,7 +36,7 @@ Then log out and back in (or restart GNOME Shell) so the extension is discovered
 
 ## Usage
 
-- **Toggle keyboard:** click the yellow pill in the center of the top panel (appears on touch).
+- **Toggle keyboard:** click the yellow pill at the bottom-right (appears on touch).
 - **Settings:** click the gear icon on the keyboard header.
 - **Numeric keypad:** click the grid icon to slide in the numpad.
 - **Dock/float:** click the minimize icon to toggle floating mode.
