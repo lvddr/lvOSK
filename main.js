@@ -359,6 +359,30 @@ const CLICK_SOUND_OK = !!CLICK_SOUND && GLib.file_test(CLICK_SOUND, GLib.FileTes
 const KEY_SIZE_FACTORS = {compact: 0.62, default: 0.82, large: 0.95};
 const KEY_SIZE_LABELS = {compact: 'Compact', default: 'Default', large: 'Large'};
 const KEY_SIZE_ORDER = ['compact', 'default', 'large'];
+const ALTERNATES = {
+'a': ['à','á','â','ã','ä','å','ā','æ'],
+'c': ['ç','ć','č'],
+'e': ['è','é','ê','ë','ē','ę'],
+'i': ['ì','í','î','ï','ī'],
+'n': ['ñ','ń'],
+'o': ['ò','ó','ô','õ','ö','ø','ō','œ'],
+'s': ['ß','ś','š'],
+'u': ['ù','ú','û','ü','ū'],
+'y': ['ý','ÿ'],
+'z': ['ž','ź','ż'],
+'g': ['ğ'],
+'l': ['ł'],
+'d': ['đ'],
+};
+function getAlternates(label) {
+const lower = (label || '').toLowerCase();
+const alts = ALTERNATES[lower];
+if (!alts || !alts.length) return null;
+if (label && label !== lower) {
+return alts.map(c => c.toUpperCase());
+}
+return alts.slice();
+}
 function loadSettings() {
 try {
 const [ok, bytes] = GLib.file_get_contents(SETTINGS_PATH);
@@ -394,6 +418,8 @@ this._hideSuppressedUntil = 0;
 this._spyglassTimer = 0;
 this._spyglassPosTimer = 0;
 this._callout = null;
+this._alternatesPopup = null;
+this._alternateSelected = false;
 this._visible = false;
 this._height = 420;
 this._settings = Object.assign(
@@ -497,8 +523,8 @@ x_expand: true,
 vertical: false,
 });
 const leftGroup = new St.BoxLayout({style_class: 'header-left', });
-this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic'})});
-this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16})});
+this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 15})});
+this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 15})});
 this._layoutBtn.connect('clicked', () => this.toggleKeypad());
 this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
 leftGroup.add_child(this._settingsBtn);
@@ -506,8 +532,8 @@ leftGroup.add_child(this._layoutBtn);
 const center = new St.BoxLayout({x_expand: true});
 center.reactive = true;
 const rightGroup = new St.BoxLayout({style_class: 'header-right', });
-this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic'})});
-const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic'})});
+this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 15})});
+const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 15})});
 rightGroup.add_child(this._dockBtn);
 rightGroup.add_child(closeBtn);
 header.add_child(leftGroup);
@@ -807,6 +833,15 @@ return Math.max(20, (width - gaps) / totalUnits);
 _wireKey(key, spec) {
 const repeatable = this._isRepeatable(spec);
 key.connect('long-press', () => {
+if (spec.type === 'char' && /[a-zA-Z]/.test(spec.label || '')) {
+const alts = getAlternates(spec.label);
+if (alts && alts.length) {
+key._longPressed = true;
+this._alternateSelected = false;
+this._showAlternates(key, spec, alts);
+return;
+}
+}
 if (!spec.secondary)
 return;
 key._longPressed = true;
@@ -829,6 +864,7 @@ this._performAction(spec, key);
 });
 key.connect('released', () => {
 this._hideCallout();
+this._hideAlternates();
 this._stopRepeat();
 if (repeatable)
 return;
@@ -836,6 +872,10 @@ if (spec.type === 'action')
 return;
 if (key._longPressed) {
 key._longPressed = false;
+if (this._alternateSelected) {
+this._alternateSelected = false;
+return;
+}
 return;
 }
 this._performChar(spec, key);
@@ -1001,6 +1041,40 @@ if (spec.label)
 return spec.label;
 return (spec.action || '').toUpperCase();
 }
+_showAlternates(key, spec, alts) {
+this._hideAlternates();
+const popup = new St.BoxLayout({vertical: false, style_class: 'lvosk-alternates-popup'});
+for (const ch of alts) {
+const btn = new St.Button({label: ch, style_class: 'lvosk-alternate'});
+btn.connect('clicked', () => this._selectAlternate(ch, spec));
+popup.add_child(btn);
+}
+Main.layoutManager.uiGroup.add_child(popup);
+this._alternatesPopup = popup;
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+try {
+const [kx, ky] = key.get_transformed_position();
+const [kw, kh] = key.get_size();
+const [pw, ph] = popup.get_size();
+const cx = kx + kw / 2 - pw / 2;
+const cy = ky - ph - 8;
+popup.set_position(Math.round(cx), Math.round(cy));
+} catch (e) {}
+return GLib.SOURCE_REMOVE;
+});
+}
+_hideAlternates() {
+if (this._alternatesPopup) {
+try { this._alternatesPopup.destroy(); } catch (e) {}
+this._alternatesPopup = null;
+}
+}
+_selectAlternate(ch, spec) {
+this._alternateSelected = true;
+this._input.sendKeyval(this._charToKeyval(ch));
+this._afterChar();
+this._hideAlternates();
+}
 _showCallout(key, text) {
 this._hideCallout();
 if (!text)
@@ -1116,6 +1190,7 @@ this._startSpyglass();
 }
 hide() {
 this._hideCallout();
+this._hideAlternates();
 if (!this._visible) return;
 this._visible = false;
 this._stopSpyglass();
@@ -1149,6 +1224,7 @@ try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch 
 try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
 try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
 try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
+try { if (this._alternatesPopup) this._alternatesPopup.destroy(); } catch (e) {}
 try { this._container.destroy(); } catch (e) {}
 }
 }
@@ -1167,6 +1243,18 @@ try {
 if (Main.keyboard && Main.keyboard.keyboardActor)
 Main.keyboard.keyboardActor.visible = false;
 } catch (e) {}
+}
+function _showPill() {
+if (!_indicator) return;
+_indicator.opacity = 0;
+_indicator.show();
+_indicator.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+}
+function _hidePill() {
+if (!_indicator || !_indicator.visible) return;
+_indicator.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
+try { _indicator.hide(); _indicator.opacity = 255; } catch (e) {}
+}});
 }
 function enable() {
 _kb = new KeyboardUI();
@@ -1208,7 +1296,7 @@ _saved.touchHandlerId = global.stage.connect('captured-event', (actor, event) =>
 try {
 const t = event.type();
 if (t === Clutter.EventType.TOUCH_BEGIN) {
-if (_indicator) _indicator.show();
+if (_indicator) _showPill();
 } else if (t === Clutter.EventType.BUTTON_PRESS || t === Clutter.EventType.MOTION) {
 if (_indicator && _indicator.visible) {
 let onPill = false;
@@ -1217,7 +1305,7 @@ while (a) {
 if (a === _indicator) { onPill = true; break; }
 a = a.get_parent();
 }
-if (!onPill) _indicator.hide();
+if (!onPill) _hidePill();
 }
 }
 } catch (e) {}
@@ -1260,7 +1348,6 @@ console.error('lvosk hook error: ' + e);
 }
 const _origShow = _kb.show.bind(_kb);
 _kb.show = function () {
-if (_indicator) _indicator.hide();
 return _origShow();
 };
 _indicator = new St.Button({
@@ -1273,6 +1360,7 @@ _indicator.connect('clicked', () => {
 _toggle();
 });
 Main.panel._centerBox.add_child(_indicator);
+_indicator.opacity = 255;
 _indicator.hide();
 }
 function disable() {

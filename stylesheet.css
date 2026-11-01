@@ -128,15 +128,27 @@
     color: #ffffff;
 }
 
-.key-callout {
+.lvosk-alternates-popup {
     background-color: rgba(45, 45, 45, 0.98);
-    color: #ffffff;
-    font-size: 32px;
-    font-weight: 400;
-    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 4px;
+    spacing: 2px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.lvosk-alternate {
+    min-width: 32px;
+    min-height: 36px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    padding: 2px 6px;
+    font-size: 18px;
+}
+
+.lvosk-alternate:hover {
+    background-color: rgba(255, 255, 255, 0.16);
 }
 
 .keyboard-spyglass {
