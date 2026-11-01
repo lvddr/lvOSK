@@ -117,10 +117,10 @@ export function enable() {
 
     // Pill button in the center of the panel
     // Hide pill by default; touch reveals it.
-    // Wrap show/hide so the pill hides while the keyboard is open.
+    // The pill stays visible while the keyboard is open; it only disappears
+    // on mouse movement/click or physical keyboard use.
     const _origShow = _kb.show.bind(_kb);
     _kb.show = function () {
-        if (_indicator) _indicator.hide();
         return _origShow();
     };
 
