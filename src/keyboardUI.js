@@ -434,19 +434,19 @@ export class KeyboardUI {
     }
 
     _fitKeypadHeight() {
-        // Stretch/squish the five keypad rows so the pad is exactly as tall
-        // as the four-row letter grid beside it.
+        // Make keypad keys the same height as letter keys. The pad will be
+        // taller than the letter grid (5 rows vs 4), which is fine.
         const rows = this._keypadBox.get_children();
         if (!rows.length)
             return;
-        const lettersHeight = this._gridBox.get_preferred_height(-1)[1];
-        const gap = 6;
-        const rowHeight = Math.max(
-            36, Math.floor((lettersHeight - gap * (rows.length - 1)) / rows.length));
+        const letterRows = this._gridBox.get_children();
+        const keyHeight = letterRows.length
+            ? letterRows[0].get_preferred_height(-1)[1]
+            : 76;
         for (const row of rows) {
-            row.set_height(rowHeight);
+            row.set_height(keyHeight);
             for (const key of row.get_children())
-                key.set_height(rowHeight);
+                key.set_height(keyHeight);
         }
     }
 

@@ -92,5 +92,4 @@ LAYOUTS.keypad = [
     [kp('4'), kp('5'), kp('6')],
     [kp('7'), kp('8'), kp('9')],
     [kp('*'), kp('0'), kp('#')],
-    [{type: 'action', action: 'backspace', icon: 'edit-clear-symbolic', width: 3.0}],
 ];
