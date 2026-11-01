@@ -34,7 +34,7 @@
     background-color: transparent;
     color: #cccccc;
     padding: 1px;
-    icon-size: 14px;
+    icon-size: 12px;
 }
 
 .lvosk-header-button:hover {
@@ -123,7 +123,7 @@
 }
 
 .key-icon {
-    icon-size: 18px;
+    icon-size: 16px;
     color: #ffffff;
 }
 
@@ -177,5 +177,5 @@
 
 .lvosk-panel-pill-icon {
     color: #1c1c1c;
-    icon-size: 16px;
+    icon-size: 14px;
 }

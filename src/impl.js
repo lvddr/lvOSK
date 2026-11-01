@@ -128,7 +128,7 @@ export function enable() {
         style_class: 'lvosk-panel-pill',
         can_focus: false,
         reactive: true,
-        child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 18, style: 'color: #1c1c1c;'}),
+        child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 14, style: 'color: #1c1c1c;'}),
     });
     _indicator.connect('clicked', () => {
         _toggle();
