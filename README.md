@@ -15,6 +15,12 @@ The built-in GNOME on-screen keyboard is, frankly, bad:
 
 lvOSK replaces all of that with a modern, touch-friendly, Windows 11-inspired keyboard that actually feels good to use.
 
+## Screenshots
+
+![lvOSK keyboard](img/screenshot1.png)
+
+![lvOSK keyboard with keypad](img/screenshot2.png)
+
 ## Features
 
 - Windows 11-style 4-row layout with proper key sizing and gaps
