@@ -38,6 +38,15 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.lvosk-header-button-inner {
+    spacing: 4px;
+}
+
+.lvosk-header-button-label {
+    font-size: 12px;
+    color: #cccccc;
+}
+
 .lvosk-header-button:hover {
     background-color: rgba(255, 255, 255, 0.10);
 }
