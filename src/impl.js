@@ -16,6 +16,20 @@ function _hideGnomeKeyboard() {
     } catch (e) {}
 }
 
+
+function _showPill() {
+    if (!_indicator) return;
+    _indicator.opacity = 0;
+    _indicator.show();
+    _indicator.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+}
+
+function _hidePill() {
+    if (!_indicator || !_indicator.visible) return;
+    _indicator.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
+        try { _indicator.hide(); _indicator.opacity = 255; } catch (e) {}
+    }});
+}
 export function enable() {
     _kb = new KeyboardUI();
 
@@ -61,7 +75,7 @@ export function enable() {
             try {
                 const t = event.type();
                 if (t === Clutter.EventType.TOUCH_BEGIN) {
-                    if (_indicator) _indicator.show();
+                    if (_indicator) _showPill();
                 } else if (t === Clutter.EventType.BUTTON_PRESS || t === Clutter.EventType.MOTION) {
                     // Hide the pill on mouse activity, unless the event is on the pill itself.
                     if (_indicator && _indicator.visible) {
@@ -71,7 +85,7 @@ export function enable() {
                             if (a === _indicator) { onPill = true; break; }
                             a = a.get_parent();
                         }
-                        if (!onPill) _indicator.hide();
+                        if (!onPill) _hidePill();
                     }
                 }
             } catch (e) {}
@@ -134,6 +148,7 @@ export function enable() {
         _toggle();
     });
     Main.panel._centerBox.add_child(_indicator);
+    _indicator.opacity = 255;
     _indicator.hide();
 }
 
