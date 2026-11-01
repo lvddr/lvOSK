@@ -4,6 +4,7 @@
   "description": "On-screen keyboard with Windows 11 style layout and touch support.",
   "version": 1,
   "shell-version": [
-    "50"
+    "50",
+    "51"
   ]
 }

@@ -34,7 +34,7 @@ lvOSK replaces all of that with a modern, touch-friendly, Windows 11-inspired ke
 
 ## Requirements
 
-- GNOME Shell 45-50
+- GNOME Shell 45-51
 - Wayland session
 - Touchscreen (recommended) or mouse
 
