@@ -218,7 +218,6 @@ export class KeyboardUI {
         this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: keypadBox});
         this._layoutBtn.connect('clicked', () => this.toggleKeypad());
         this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
-        leftGroup.add_child(this._layoutBtn);
         leftGroup.add_child(this._settingsBtn);
 
         const center = new St.BoxLayout({x_expand: true});
@@ -228,6 +227,7 @@ export class KeyboardUI {
         const rightGroup = new St.BoxLayout({style_class: 'header-right', });
         this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 15})});
         const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 15})});
+        rightGroup.add_child(this._layoutBtn);
         rightGroup.add_child(this._dockBtn);
         rightGroup.add_child(closeBtn);
 
