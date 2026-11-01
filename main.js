@@ -4,7 +4,6 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as KeyboardModule from 'resource:///org/gnome/shell/ui/keyboard.js';
 
@@ -1764,7 +1763,7 @@ const size = 40;
 this._bar.set_size(size, size);
 this._bar.set_position(
 m.x + m.width - size - 16,
-m.y + m.height - size - 16);
+m.y + m.height - size - 64);
 this._bar.opacity = 0;
 this._bar.show();
 this._bar.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
@@ -1858,14 +1857,7 @@ try { this._container.destroy(); } catch (e) {}
 }
 // ===== impl.js =====
 let _kb = null;
-let _indicator = null;
 let _saved = null;
-let _a11ySettings = null;
-let _savedScreenKeyboard = null;
-function _toggle() {
-if (!_kb) return;
-if (_kb._visible) _kb.hide(); else _kb.show();
-}
 function _hideGnomeKeyboard() {
 try {
 if (Main.keyboard && Main.keyboard.keyboardActor)
@@ -1958,10 +1950,6 @@ _saved.imChangedIds.push(id);
 } catch (e) {}
 }
 }
-_a11ySettings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.applications'});
-_savedScreenKeyboard = _a11ySettings.get_boolean('screen-keyboard-enabled');
-if (!_savedScreenKeyboard)
-_a11ySettings.set_boolean('screen-keyboard-enabled', true);
 _hideGnomeKeyboard();
 } catch (e) {
 console.error('win11-osk hook error: ' + e);
@@ -1972,16 +1960,6 @@ try { if (_kb) _kb.showBar(); } catch (e) {}
 return GLib.SOURCE_REMOVE;
 });
 }
-_indicator = new PanelMenu.Button(0.0, 'win11-osk', true);
-_indicator.add_child(new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 16}));
-_indicator.connect('button-press-event', (actor, event) => {
-if (event.get_button() === 1) {
-_toggle();
-return Clutter.EVENT_STOP;
-}
-return Clutter.EVENT_PROPAGATE;
-});
-Main.panel.addToStatusArea('win11-osk', _indicator, 0, 'right');
 }
 function disable() {
 try {
@@ -2009,18 +1987,6 @@ try { global.stage.disconnect(_saved.touchHandlerId); } catch (e) {}
 console.error('win11-osk unhook error: ' + e);
 }
 _saved = null;
-try {
-if (_a11ySettings && _savedScreenKeyboard === false)
-_a11ySettings.set_boolean('screen-keyboard-enabled', false);
-} catch (e) {
-console.error('win11-osk setting restore error: ' + e);
-}
-_a11ySettings = null;
-_savedScreenKeyboard = null;
-if (_indicator) {
-try { _indicator.destroy(); } catch (e) {}
-_indicator = null;
-}
 if (_kb) {
 _kb.destroy();
 _kb = null;

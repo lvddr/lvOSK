@@ -1,13 +1,5 @@
 let _kb = null;
-let _indicator = null;
 let _saved = null;
-let _a11ySettings = null;
-let _savedScreenKeyboard = null;
-
-function _toggle() {
-    if (!_kb) return;
-    if (_kb._visible) _kb.hide(); else _kb.show();
-}
 
 function _hideGnomeKeyboard() {
     try {
@@ -111,10 +103,6 @@ export function enable() {
             }
         }
 
-        _a11ySettings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.applications'});
-        _savedScreenKeyboard = _a11ySettings.get_boolean('screen-keyboard-enabled');
-        if (!_savedScreenKeyboard)
-            _a11ySettings.set_boolean('screen-keyboard-enabled', true);
         _hideGnomeKeyboard();
     } catch (e) {
         console.error('win11-osk hook error: ' + e);
@@ -127,16 +115,6 @@ export function enable() {
         });
     }
 
-    _indicator = new PanelMenu.Button(0.0, 'win11-osk', true);
-    _indicator.add_child(new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 16}));
-    _indicator.connect('button-press-event', (actor, event) => {
-        if (event.get_button() === 1) {
-            _toggle();
-            return Clutter.EVENT_STOP;
-        }
-        return Clutter.EVENT_PROPAGATE;
-    });
-    Main.panel.addToStatusArea('win11-osk', _indicator, 0, 'right');
 }
 
 export function disable() {
@@ -166,19 +144,6 @@ export function disable() {
     }
     _saved = null;
 
-    try {
-        if (_a11ySettings && _savedScreenKeyboard === false)
-            _a11ySettings.set_boolean('screen-keyboard-enabled', false);
-    } catch (e) {
-        console.error('win11-osk setting restore error: ' + e);
-    }
-    _a11ySettings = null;
-    _savedScreenKeyboard = null;
-
-    if (_indicator) {
-        try { _indicator.destroy(); } catch (e) {}
-        _indicator = null;
-    }
     if (_kb) {
         _kb.destroy();
         _kb = null;

@@ -1508,10 +1508,9 @@ export class KeyboardUI {
         const m = this._monitor();
         const size = 40;
         this._bar.set_size(size, size);
-        // position lower right
         this._bar.set_position(
             m.x + m.width - size - 16,
-            m.y + m.height - size - 16);
+            m.y + m.height - size - 64);
         this._bar.opacity = 0;
         this._bar.show();
         this._bar.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
