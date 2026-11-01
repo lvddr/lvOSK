@@ -327,6 +327,49 @@ this._device.notify_keyval(ts, Clutter.KEY_h, Clutter.KeyState.PRESSED);
 this._device.notify_keyval(ts, Clutter.KEY_h, Clutter.KeyState.RELEASED);
 this._device.notify_keyval(ts, Clutter.KEY_Super_L, Clutter.KeyState.RELEASED);
 }
+sendUnicode(ch) {
+const ts = this._now();
+const hex = ch.charCodeAt(0).toString(16);
+this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
+this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
+this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.PRESSED);
+this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.RELEASED);
+this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED);
+this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
+for (const c of hex) {
+const ks = Clutter.KEY_0 + (parseInt(c, 16) > 9 ? parseInt(c, 16) - 10 + (Clutter.KEY_a - Clutter.KEY_0) : parseInt(c, 16));
+const digit = c.toLowerCase();
+let keyval;
+if (digit >= '0' && digit <= '9') keyval = Clutter.KEY_0 + (digit.charCodeAt(0) - 48);
+else keyval = Clutter.KEY_a + (digit.charCodeAt(0) - 97);
+this._device.notify_keyval(ts, keyval, Clutter.KeyState.PRESSED);
+this._device.notify_keyval(ts, keyval, Clutter.KeyState.RELEASED);
+}
+this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.PRESSED);
+this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.RELEASED);
+}
+sendText(text) {
+const ch = text.charAt(0);
+const code = ch.charCodeAt(0);
+const hex = code.toString(16);
+let ts = this._now();
+const step = () => { ts += 5; };
+this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED); step();
+this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED); step();
+this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.PRESSED); step();
+this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.RELEASED); step();
+this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED); step();
+this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED); step();
+for (const c of hex) {
+let keyval;
+if (c >= '0' && c <= '9') keyval = Clutter.KEY_0 + (c.charCodeAt(0) - 48);
+else keyval = Clutter.KEY_a + (c.charCodeAt(0) - 97);
+this._device.notify_keyval(ts, keyval, Clutter.KeyState.PRESSED); step();
+this._device.notify_keyval(ts, keyval, Clutter.KeyState.RELEASED); step();
+}
+this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.PRESSED); step();
+this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.RELEASED);
+}
 destroy() {
 try { this._device.destroy(); } catch (e) {}
 this._device = null;
@@ -359,30 +402,6 @@ const CLICK_SOUND_OK = !!CLICK_SOUND && GLib.file_test(CLICK_SOUND, GLib.FileTes
 const KEY_SIZE_FACTORS = {compact: 0.62, default: 0.82, large: 0.95};
 const KEY_SIZE_LABELS = {compact: 'Compact', default: 'Default', large: 'Large'};
 const KEY_SIZE_ORDER = ['compact', 'default', 'large'];
-const ALTERNATES = {
-'a': ['à','á','â','ã','ä','å','ā','æ'],
-'c': ['ç','ć','č'],
-'e': ['è','é','ê','ë','ē','ę'],
-'i': ['ì','í','î','ï','ī'],
-'n': ['ñ','ń'],
-'o': ['ò','ó','ô','õ','ö','ø','ō','œ'],
-'s': ['ß','ś','š'],
-'u': ['ù','ú','û','ü','ū'],
-'y': ['ý','ÿ'],
-'z': ['ž','ź','ż'],
-'g': ['ğ'],
-'l': ['ł'],
-'d': ['đ'],
-};
-function getAlternates(label) {
-const lower = (label || '').toLowerCase();
-const alts = ALTERNATES[lower];
-if (!alts || !alts.length) return null;
-if (label && label !== lower) {
-return alts.map(c => c.toUpperCase());
-}
-return alts.slice();
-}
 function loadSettings() {
 try {
 const [ok, bytes] = GLib.file_get_contents(SETTINGS_PATH);
@@ -418,8 +437,6 @@ this._hideSuppressedUntil = 0;
 this._spyglassTimer = 0;
 this._spyglassPosTimer = 0;
 this._callout = null;
-this._alternatesPopup = null;
-this._alternateSelected = false;
 this._visible = false;
 this._height = 420;
 this._settings = Object.assign(
@@ -833,15 +850,6 @@ return Math.max(20, (width - gaps) / totalUnits);
 _wireKey(key, spec) {
 const repeatable = this._isRepeatable(spec);
 key.connect('long-press', () => {
-if (spec.type === 'char' && /[a-zA-Z]/.test(spec.label || '')) {
-const alts = getAlternates(spec.label);
-if (alts && alts.length) {
-key._longPressed = true;
-this._alternateSelected = false;
-this._showAlternates(key, spec, alts);
-return;
-}
-}
 if (!spec.secondary)
 return;
 key._longPressed = true;
@@ -864,7 +872,6 @@ this._performAction(spec, key);
 });
 key.connect('released', () => {
 this._hideCallout();
-this._hideAlternates();
 this._stopRepeat();
 if (repeatable)
 return;
@@ -872,10 +879,6 @@ if (spec.type === 'action')
 return;
 if (key._longPressed) {
 key._longPressed = false;
-if (this._alternateSelected) {
-this._alternateSelected = false;
-return;
-}
 return;
 }
 this._performChar(spec, key);
@@ -963,6 +966,10 @@ this._render();
 }
 }
 _charToKeyval(ch) {
+const code = ch.charCodeAt(0);
+if (code > 127) {
+return 0x01000000 | code;
+}
 const map = {
 ' ': Clutter.KEY_space,
 ',': Clutter.KEY_comma,
@@ -990,7 +997,6 @@ const map = {
 };
 if (map[ch] !== undefined)
 return map[ch];
-const code = ch.charCodeAt(0);
 if (code >= 97 && code <= 122)
 return Clutter.KEY_a + (code - 97);
 if (code >= 65 && code <= 90)
@@ -1040,40 +1046,6 @@ return ch === ' ' ? '␣' : ch;
 if (spec.label)
 return spec.label;
 return (spec.action || '').toUpperCase();
-}
-_showAlternates(key, spec, alts) {
-this._hideAlternates();
-const popup = new St.BoxLayout({vertical: false, style_class: 'lvosk-alternates-popup'});
-for (const ch of alts) {
-const btn = new St.Button({label: ch, style_class: 'lvosk-alternate'});
-btn.connect('clicked', () => this._selectAlternate(ch, spec));
-popup.add_child(btn);
-}
-Main.layoutManager.uiGroup.add_child(popup);
-this._alternatesPopup = popup;
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
-try {
-const [kx, ky] = key.get_transformed_position();
-const [kw, kh] = key.get_size();
-const [pw, ph] = popup.get_size();
-const cx = kx + kw / 2 - pw / 2;
-const cy = ky - ph - 8;
-popup.set_position(Math.round(cx), Math.round(cy));
-} catch (e) {}
-return GLib.SOURCE_REMOVE;
-});
-}
-_hideAlternates() {
-if (this._alternatesPopup) {
-try { this._alternatesPopup.destroy(); } catch (e) {}
-this._alternatesPopup = null;
-}
-}
-_selectAlternate(ch, spec) {
-this._alternateSelected = true;
-this._input.sendKeyval(this._charToKeyval(ch));
-this._afterChar();
-this._hideAlternates();
 }
 _showCallout(key, text) {
 this._hideCallout();
@@ -1190,7 +1162,6 @@ this._startSpyglass();
 }
 hide() {
 this._hideCallout();
-this._hideAlternates();
 if (!this._visible) return;
 this._visible = false;
 this._stopSpyglass();
@@ -1224,7 +1195,6 @@ try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch 
 try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
 try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
 try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
-try { if (this._alternatesPopup) this._alternatesPopup.destroy(); } catch (e) {}
 try { this._container.destroy(); } catch (e) {}
 }
 }

@@ -1,5 +1,7 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
+import St from 'gi://St';
 
 export class InputController {
     constructor() {
@@ -76,6 +78,58 @@ export class InputController {
         this._device.notify_keyval(ts, Clutter.KEY_h, Clutter.KeyState.PRESSED);
         this._device.notify_keyval(ts, Clutter.KEY_h, Clutter.KeyState.RELEASED);
         this._device.notify_keyval(ts, Clutter.KEY_Super_L, Clutter.KeyState.RELEASED);
+    }
+
+    sendUnicode(ch) {
+        // GTK unicode input: Ctrl+Shift+U, hex code, Space/Return
+        const ts = this._now();
+        const hex = ch.charCodeAt(0).toString(16);
+        this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
+        this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
+        this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.PRESSED);
+        this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.RELEASED);
+        this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED);
+        this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
+        for (const c of hex) {
+            const ks = Clutter.KEY_0 + (parseInt(c, 16) > 9 ? parseInt(c, 16) - 10 + (Clutter.KEY_a - Clutter.KEY_0) : parseInt(c, 16));
+            // simpler: map hex digit to keysym
+            const digit = c.toLowerCase();
+            let keyval;
+            if (digit >= '0' && digit <= '9') keyval = Clutter.KEY_0 + (digit.charCodeAt(0) - 48);
+            else keyval = Clutter.KEY_a + (digit.charCodeAt(0) - 97);
+            this._device.notify_keyval(ts, keyval, Clutter.KeyState.PRESSED);
+            this._device.notify_keyval(ts, keyval, Clutter.KeyState.RELEASED);
+        }
+        this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.PRESSED);
+        this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.RELEASED);
+    }
+
+    sendText(text) {
+        // GTK unicode input method: Ctrl+Shift+U, hex code, Space.
+        // Works in GTK apps. Falls back to nothing for non-GTK apps.
+        const ch = text.charAt(0);
+        const code = ch.charCodeAt(0);
+        const hex = code.toString(16);
+        let ts = this._now();
+        const step = () => { ts += 5; };
+        // Ctrl+Shift+U
+        this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.PRESSED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_U, Clutter.KeyState.RELEASED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED); step();
+        // hex digits
+        for (const c of hex) {
+            let keyval;
+            if (c >= '0' && c <= '9') keyval = Clutter.KEY_0 + (c.charCodeAt(0) - 48);
+            else keyval = Clutter.KEY_a + (c.charCodeAt(0) - 97);
+            this._device.notify_keyval(ts, keyval, Clutter.KeyState.PRESSED); step();
+            this._device.notify_keyval(ts, keyval, Clutter.KeyState.RELEASED); step();
+        }
+        // Space to commit
+        this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.PRESSED); step();
+        this._device.notify_keyval(ts, Clutter.KEY_space, Clutter.KeyState.RELEASED);
     }
 
     destroy() {
