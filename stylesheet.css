@@ -33,8 +33,9 @@
     border-radius: 5px;
     background-color: transparent;
     color: #cccccc;
-    padding: 1px;
+    padding: 1px 6px;
     icon-size: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .lvosk-header-button:hover {
