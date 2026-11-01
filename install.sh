@@ -4,11 +4,17 @@ SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEST="$HOME/.local/share/gnome-shell/extensions/win11-osk@local"
 mkdir -p "$DEST"
 # Copy only the runtime files needed by GNOME Shell.
-for f in extension.js main.js metadata.json stylesheet.css click.wav; do
+for f in extension.js main.js metadata.json stylesheet.css click.wav prefs.js; do
     if [ -f "$SRC_DIR/$f" ]; then
         cp "$SRC_DIR/$f" "$DEST"/
     fi
 done
+# Install and compile the GSettings schema (for Extension Manager settings).
+if [ -d "$SRC_DIR/schemas" ]; then
+    mkdir -p "$DEST/schemas"
+    cp "$SRC_DIR/schemas/"*.xml "$DEST/schemas/"
+    glib-compile-schemas "$DEST/schemas"
+fi
 echo "Installed to $DEST"
 echo "Enable with: gnome-extensions enable win11-osk@local"
 echo "Test in nested session: dbus-run-session -- gnome-shell --wayland --headless"

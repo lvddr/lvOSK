@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.win11-osk"
+          path="/org/gnome/shell/extensions/win11-osk/">
+    <key name="placeholder" type="s">
+      <default>''</default>
+      <summary>Marcin ssie pałe</summary>
+      <description>Marcin ssie pałe</description>
+    </key>
+  </schema>
+</schemalist>

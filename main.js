@@ -527,6 +527,12 @@ is.connect('changed::current', () => this._loadSpecialChars());
 is.connect('changed::sources', () => this._loadSpecialChars());
 } catch (e) {}
 this._buildContainer();
+this._monitorsChangedId = 0;
+try {
+this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
+this._onMonitorsChanged();
+});
+} catch (e) {}
 }
 get autoShow() {
 return this._settings.autoShow !== false;
@@ -744,13 +750,20 @@ global.display.get_sound_player().play_from_theme(
 'bell', 'On-screen keyboard key', null);
 } catch (e) {}
 }
+_effectiveFactor() {
+const m = this._monitor();
+if (!this._floating && m.width < 1000)
+return KEY_SIZE_FACTORS.large;
+return KEY_SIZE_FACTORS[this._settings.keySize] || KEY_SIZE_FACTORS.default;
+}
 _containerWidth() {
 const m = this._monitor();
 if (!this._floating)
 return m.width;
-const factor = KEY_SIZE_FACTORS[this._settings.keySize] || 0.82;
+const factor = KEY_SIZE_FACTORS[this._settings.keySize] || KEY_SIZE_FACTORS.default;
 const base = Math.min(960, Math.max(480, m.width - 40));
-return Math.round(base * (factor / KEY_SIZE_FACTORS.default));
+const w = Math.round(base * (factor / KEY_SIZE_FACTORS.default));
+return Math.min(w, m.width - 40);
 }
 _updateSystemTheme() {
 let theme = 'light';
@@ -968,6 +981,22 @@ this._xkbCacheKey = cacheKey;
 console.error('lvosk xkb load error: ' + e);
 }
 }
+_onMonitorsChanged() {
+if (this._destroyed)
+return;
+try {
+this._applyMode();
+this._scheduleRender();
+if (this._visible) {
+const [x, y] = this._targetPosition();
+this._container.set_position(x, y);
+}
+if (this._bar && this._bar.visible)
+this._positionBar();
+} catch (e) {
+console.error('lvosk monitor change error: ' + e);
+}
+}
 _applyMode() {
 const m = this._monitor();
 const theme = this._theme === 'light' ? 'light' : 'dark';
@@ -977,7 +1006,7 @@ this._height = 400;
 this._container.set_size(w, this._height);
 this._container.style_class = 'lvosk-keyboard floating ' + theme;
 } else {
-this._height = 420;
+this._height = Math.min(420, Math.max(220, m.height - 24));
 this._container.set_size(m.width, this._height);
 this._container.style_class = 'lvosk-keyboard ' + theme;
 }
@@ -995,11 +1024,11 @@ const x = m.x + Math.round((m.width - w) / 2);
 const y = Math.max(m.y + 40, m.y + Math.round((m.height - this._height) / 2));
 return [x, y];
 }
-return [0, m.y + m.height - this._height];
+return [m.x, m.y + m.height - this._height];
 }
 _contentWidth() {
 const m = this._monitor();
-const factor = KEY_SIZE_FACTORS[this._settings.keySize] || 0.82;
+const factor = this._effectiveFactor();
 if (this._floating)
 return this._containerWidth() - 24;
 return Math.min(m.width * factor, factor >= 0.95 ? 1600 : 1280);
@@ -1755,15 +1784,18 @@ return Clutter.EVENT_STOP;
 Main.layoutManager.uiGroup.add_child(this._bar);
 this._bar.hide();
 }
-showBar() {
-if (this._visible) return;
-if (this._bar.visible) return;
+_positionBar() {
 const m = this._monitor();
 const size = 40;
 this._bar.set_size(size, size);
 this._bar.set_position(
 m.x + m.width - size - 16,
 m.y + m.height - size - 64);
+}
+showBar() {
+if (this._visible) return;
+if (this._bar.visible) return;
+this._positionBar();
 this._bar.opacity = 0;
 this._bar.show();
 this._bar.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
@@ -1831,6 +1863,10 @@ onComplete: () => this._container.hide(),
 }
 destroy() {
 this._destroyed = true;
+if (this._monitorsChangedId) {
+try { Main.layoutManager.disconnect(this._monitorsChangedId); } catch (e) {}
+this._monitorsChangedId = 0;
+}
 if (this._shiftHoldSource) {
 try { GLib.source_remove(this._shiftHoldSource); } catch (e) {}
 this._shiftHoldSource = 0;

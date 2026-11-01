@@ -3,6 +3,7 @@
   "name": "lvOSK",
   "description": "On-screen keyboard with Windows 11 style layout and touch support.",
   "version": "0.5.2",
+  "settings-schema": "org.gnome.shell.extensions.win11-osk",
   "shell-version": [
     "50",
     "51"
