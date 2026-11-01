@@ -802,10 +802,11 @@ export class KeyboardUI {
         if (!text)
             return;
         const popup = new St.Label({text: String(text), style_class: 'key-callout'});
+        popup.hide();
         Main.layoutManager.uiGroup.add_child(popup);
         this._callout = popup;
-        // position after allocation
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+        // position after allocation, then show (avoids top-left flash)
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
             try {
                 const [kx, ky] = key.get_transformed_position();
                 const [kw, kh] = key.get_size();
@@ -813,6 +814,7 @@ export class KeyboardUI {
                 const cx = kx + kw / 2 - pw / 2;
                 const cy = ky - ph - 12;
                 popup.set_position(Math.round(cx), Math.round(cy));
+                popup.show();
             } catch (e) {}
             return GLib.SOURCE_REMOVE;
         });
