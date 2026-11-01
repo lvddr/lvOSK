@@ -79,6 +79,39 @@ export const LAYOUTS = {
             A('hide', {icon: 'window-close-symbolic', width: 1.0}),
         ],
     ],
+    alternates: [
+        [
+            L('ą'), L('ć'), L('ę'), L('ł'), L('ń'), L('ó'), L('ś'), L('ź'), L('ż'),
+        ],
+        [
+            L('Ą'), L('Ć'), L('Ę'), L('Ł'), L('Ń'), L('Ó'), L('Ś'), L('Ź'), L('Ż'),
+            A('backspace', {icon: 'edit-clear-symbolic', width: 1.8}),
+        ],
+        [
+            A('abc', {label: 'ABC', width: 2.0}),
+            L(' ', null, 6.8),
+            A('left', {icon: 'go-previous-symbolic', width: 1.0}),
+            A('right', {icon: 'go-next-symbolic', width: 1.0}),
+            A('hide', {icon: 'window-close-symbolic', width: 1.0}),
+        ],
+    ],
+    accents: [
+        [
+            L('ą'), L('ć'), L('ę'), L('ł'), L('ń'), L('ó'), L('ś'), L('ź'), L('ż'),
+            A('backspace', {icon: 'edit-clear-symbolic', width: 1.8}),
+        ],
+        [
+            L('Ą'), L('Ć'), L('Ę'), L('Ł'), L('Ń'), L('Ó'), L('Ś'), L('Ź'), L('Ż'),
+            A('backspace', {icon: 'edit-clear-symbolic', width: 1.8}),
+        ],
+        [
+            A('abc', {label: 'ABC', width: 2.0}),
+            L(' ', null, 6.8),
+            A('left', {icon: 'go-previous-symbolic', width: 1.0}),
+            A('right', {icon: 'go-next-symbolic', width: 1.0}),
+            A('hide', {icon: 'window-close-symbolic', width: 1.0}),
+        ],
+    ],
 };
 
 export function getLayout(name) {

@@ -16,7 +16,7 @@ A vibecoded on-screen keyboard for GNOME Shell, created to make Linux life easie
 - Phone-style numeric keypad that slides in from the right
 - Noticeably lighter pressed-key color
 - macOS-style soft key click sound
-- Settings menu: key size (Compact / Default / Large), sound feedback, auto-show on text focus
+- Settings menu: key size (Compact / Default / Large), sound feedback, auto-show on text focus, numpad by default; follows system light/dark theme
 - Touch-triggered pill button in the GNOME top panel (hidden until you touch the screen)
 - Compact mode by default
 - Input preview bubble above the keyboard
@@ -65,7 +65,8 @@ Settings are stored in `~/.config/lvosk/settings.json`:
 {
   "keySize": "compact",
   "sound": true,
-  "autoShow": false
+  "autoShow": false,
+  "numpadByDefault": false
 }
 ```
 
