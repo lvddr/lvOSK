@@ -2,7 +2,7 @@
   "uuid": "win11-osk@local",
   "name": "lvOSK",
   "description": "On-screen keyboard with Windows 11 style layout and touch support.",
-  "version": 1,
+  "version": "0.5.2",
   "shell-version": [
     "50",
     "51"
