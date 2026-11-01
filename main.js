@@ -434,6 +434,7 @@ this._floating = false;
 this._keypadOpen = false;
 this._settingsMenuOpen = false;
 this._hideSuppressedUntil = 0;
+this._barTimer = 0;
 this._spyglassTimer = 0;
 this._spyglassPosTimer = 0;
 this._callout = null;
@@ -509,6 +510,7 @@ this._body.add_child(this._keypadBox);
 this._bodyRightPad = new St.Widget({width: 12});
 this._body.add_child(this._bodyRightPad);
 Main.layoutManager.uiGroup.add_child(this._container);
+this._buildBar();
 this._spyglass = new St.Label({text: '', style_class: 'keyboard-spyglass'});
 Main.layoutManager.uiGroup.add_child(this._spyglass);
 this._spyglass.hide();
@@ -1052,9 +1054,10 @@ this._hideCallout();
 if (!text)
 return;
 const popup = new St.Label({text: String(text), style_class: 'key-callout'});
+popup.hide();
 Main.layoutManager.uiGroup.add_child(popup);
 this._callout = popup;
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
 try {
 const [kx, ky] = key.get_transformed_position();
 const [kw, kh] = key.get_size();
@@ -1062,6 +1065,7 @@ const [pw, ph] = popup.get_size();
 const cx = kx + kw / 2 - pw / 2;
 const cy = ky - ph - 12;
 popup.set_position(Math.round(cx), Math.round(cy));
+popup.show();
 } catch (e) {}
 return GLib.SOURCE_REMOVE;
 });
@@ -1145,8 +1149,64 @@ this._spyglassPosTimer = 0;
 }
 if (this._spyglass) this._spyglass.hide();
 }
+_buildBar() {
+this._bar = new St.Bin({
+style_class: 'lvosk-panel-pill',
+reactive: true,
+can_focus: false,
+x_expand: false,
+y_expand: false,
+child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 18, style: 'color: #1c1c1c;'}),
+});
+this._bar.connect('button-press-event', (actor, event) => {
+if (event.get_button() === 1) {
+this.hideBar();
+this.show();
+return Clutter.EVENT_STOP;
+}
+return Clutter.EVENT_PROPAGATE;
+});
+this._bar.connect('touch-event', (actor, event) => {
+if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
+this.hideBar();
+this.show();
+}
+return Clutter.EVENT_STOP;
+});
+Main.layoutManager.uiGroup.add_child(this._bar);
+this._bar.hide();
+}
+showBar() {
+if (this._visible) return;
+if (this._bar.visible) return;
+const m = this._monitor();
+const size = 40;
+this._bar.set_size(size, size);
+this._bar.set_position(
+m.x + m.width - size - 16,
+m.y + m.height - size - 16);
+this._bar.opacity = 0;
+this._bar.show();
+this._bar.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+if (this._barTimer) {
+try { GLib.source_remove(this._barTimer); } catch (e) {}
+this._barTimer = 0;
+}
+}
+hideBar() {
+if (this._barTimer) {
+try { GLib.source_remove(this._barTimer); } catch (e) {}
+this._barTimer = 0;
+}
+if (this._bar && this._bar.visible) {
+this._bar.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
+try { this._bar.hide(); this._bar.opacity = 255; } catch (e) {}
+}});
+}
+}
 show() {
 if (this._visible) return;
+this.hideBar();
 this._visible = true;
 this._applyMode();
 const m = this._monitor();
@@ -1195,12 +1255,13 @@ try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch 
 try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
 try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
 try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
+try { if (this._barTimer) GLib.source_remove(this._barTimer); } catch (e) {}
+try { if (this._bar) this._bar.destroy(); } catch (e) {}
 try { this._container.destroy(); } catch (e) {}
 }
 }
 // ===== impl.js =====
 let _kb = null;
-let _indicator = null;
 let _saved = null;
 let _a11ySettings = null;
 let _savedScreenKeyboard = null;
@@ -1213,18 +1274,6 @@ try {
 if (Main.keyboard && Main.keyboard.keyboardActor)
 Main.keyboard.keyboardActor.visible = false;
 } catch (e) {}
-}
-function _showPill() {
-if (!_indicator) return;
-_indicator.opacity = 0;
-_indicator.show();
-_indicator.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
-}
-function _hidePill() {
-if (!_indicator || !_indicator.visible) return;
-_indicator.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
-try { _indicator.hide(); _indicator.opacity = 255; } catch (e) {}
-}});
 }
 function enable() {
 _kb = new KeyboardUI();
@@ -1264,19 +1313,10 @@ _hideGnomeKeyboard();
 }
 _saved.touchHandlerId = global.stage.connect('captured-event', (actor, event) => {
 try {
-const t = event.type();
-if (t === Clutter.EventType.TOUCH_BEGIN) {
-if (_indicator) _showPill();
-} else if (t === Clutter.EventType.BUTTON_PRESS || t === Clutter.EventType.MOTION) {
-if (_indicator && _indicator.visible) {
-let onPill = false;
-let a = actor;
-while (a) {
-if (a === _indicator) { onPill = true; break; }
-a = a.get_parent();
-}
-if (!onPill) _hidePill();
-}
+if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
+if (_kb) _kb.showBar();
+} else if (event.type() === Clutter.EventType.MOTION || event.type() === Clutter.EventType.BUTTON_PRESS) {
+if (_kb) _kb.hideBar();
 }
 } catch (e) {}
 return Clutter.EVENT_PROPAGATE;
@@ -1316,22 +1356,6 @@ _hideGnomeKeyboard();
 } catch (e) {
 console.error('lvosk hook error: ' + e);
 }
-const _origShow = _kb.show.bind(_kb);
-_kb.show = function () {
-return _origShow();
-};
-_indicator = new St.Button({
-style_class: 'lvosk-panel-pill',
-can_focus: false,
-reactive: true,
-child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 14, style_class: 'lvosk-panel-pill-icon', style: 'color: #1c1c1c; margin: 0; padding: 0;'}),
-});
-_indicator.connect('clicked', () => {
-_toggle();
-});
-Main.panel._centerBox.add_child(_indicator);
-_indicator.opacity = 255;
-_indicator.hide();
 }
 function disable() {
 try {
@@ -1367,11 +1391,6 @@ console.error('lvosk setting restore error: ' + e);
 }
 _a11ySettings = null;
 _savedScreenKeyboard = null;
-if (_indicator) {
-try { _indicator.get_parent().remove_child(_indicator); } catch (e) {}
-try { _indicator.destroy(); } catch (e) {}
-_indicator = null;
-}
 if (_kb) {
 _kb.destroy();
 _kb = null;

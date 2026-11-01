@@ -1,5 +1,4 @@
 let _kb = null;
-let _indicator = null;
 let _saved = null;
 let _a11ySettings = null;
 let _savedScreenKeyboard = null;
@@ -16,20 +15,6 @@ function _hideGnomeKeyboard() {
     } catch (e) {}
 }
 
-
-function _showPill() {
-    if (!_indicator) return;
-    _indicator.opacity = 0;
-    _indicator.show();
-    _indicator.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
-}
-
-function _hidePill() {
-    if (!_indicator || !_indicator.visible) return;
-    _indicator.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
-        try { _indicator.hide(); _indicator.opacity = 255; } catch (e) {}
-    }});
-}
 export function enable() {
     _kb = new KeyboardUI();
 
@@ -70,23 +55,13 @@ export function enable() {
             _hideGnomeKeyboard();
         }
 
-        // Touch-triggered pill: show the panel pill on any touchscreen tap.
+        // Touch-triggered floating button: show on any touchscreen tap.
         _saved.touchHandlerId = global.stage.connect('captured-event', (actor, event) => {
             try {
-                const t = event.type();
-                if (t === Clutter.EventType.TOUCH_BEGIN) {
-                    if (_indicator) _showPill();
-                } else if (t === Clutter.EventType.BUTTON_PRESS || t === Clutter.EventType.MOTION) {
-                    // Hide the pill on mouse activity, unless the event is on the pill itself.
-                    if (_indicator && _indicator.visible) {
-                        let onPill = false;
-                        let a = actor;
-                        while (a) {
-                            if (a === _indicator) { onPill = true; break; }
-                            a = a.get_parent();
-                        }
-                        if (!onPill) _hidePill();
-                    }
+                if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
+                    if (_kb) _kb.showBar();
+                } else if (event.type() === Clutter.EventType.MOTION || event.type() === Clutter.EventType.BUTTON_PRESS) {
+                    if (_kb) _kb.hideBar();
                 }
             } catch (e) {}
             return Clutter.EVENT_PROPAGATE;
@@ -128,28 +103,6 @@ export function enable() {
     } catch (e) {
         console.error('lvosk hook error: ' + e);
     }
-
-    // Pill button in the center of the panel
-    // Hide pill by default; touch reveals it.
-    // The pill stays visible while the keyboard is open; it only disappears
-    // on mouse movement/click or physical keyboard use.
-    const _origShow = _kb.show.bind(_kb);
-    _kb.show = function () {
-        return _origShow();
-    };
-
-    _indicator = new St.Button({
-        style_class: 'lvosk-panel-pill',
-        can_focus: false,
-        reactive: true,
-        child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 14, style_class: 'lvosk-panel-pill-icon', style: 'color: #1c1c1c; margin: 0; padding: 0;'}),
-    });
-    _indicator.connect('clicked', () => {
-        _toggle();
-    });
-    Main.panel._centerBox.add_child(_indicator);
-    _indicator.opacity = 255;
-    _indicator.hide();
 }
 
 export function disable() {
@@ -188,11 +141,6 @@ export function disable() {
     _a11ySettings = null;
     _savedScreenKeyboard = null;
 
-    if (_indicator) {
-        try { _indicator.get_parent().remove_child(_indicator); } catch (e) {}
-        try { _indicator.destroy(); } catch (e) {}
-        _indicator = null;
-    }
     if (_kb) {
         _kb.destroy();
         _kb = null;
