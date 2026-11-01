@@ -212,10 +212,7 @@ export class KeyboardUI {
 
         const leftGroup = new St.BoxLayout({style_class: 'header-left', });
         this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 15})});
-        const keypadBox = new St.BoxLayout({vertical: false, style_class: 'lvosk-header-button-inner'});
-        keypadBox.add_child(new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 15}));
-        keypadBox.add_child(new St.Label({text: 'Keypad', style_class: 'lvosk-header-button-label'}));
-        this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: keypadBox});
+        this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Label({text: 'Keypad', style_class: 'lvosk-header-button-label'})});
         this._layoutBtn.connect('clicked', () => this.toggleKeypad());
         this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
         leftGroup.add_child(this._settingsBtn);
