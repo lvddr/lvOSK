@@ -42,7 +42,7 @@ lvOSK replaces all of that with a modern, touch-friendly, Windows 11-inspired ke
 
 ```bash
 git clone git@github.com:lvddr/lvOSK.git
-cd lvOSK/lvosk@local
+cd lvOSK
 ./install.sh
 gnome-extensions enable win11-osk@local
 ```
@@ -72,7 +72,6 @@ Settings are stored in `~/.config/lvosk/settings.json`:
 ## Development
 
 ```bash
-cd lvosk@local
 ./build.sh          # bundle sources into main.js
 ./install.sh        # copy to installed location
 gnome-extensions disable win11-osk@local
