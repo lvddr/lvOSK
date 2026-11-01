@@ -222,10 +222,8 @@ export class KeyboardUI {
         center.reactive = true;
 
         const rightGroup = new St.BoxLayout({style_class: 'header-right', });
-        this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 15})});
         const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 15})});
         rightGroup.add_child(this._layoutBtn);
-        rightGroup.add_child(this._dockBtn);
         rightGroup.add_child(closeBtn);
 
         header.add_child(leftGroup);
@@ -252,7 +250,6 @@ export class KeyboardUI {
         center.connect('button-release-event', onUp);
 
         closeBtn.connect('clicked', () => this.hide());
-        this._dockBtn.connect('clicked', () => this.toggleFloat());
 
         this._buildSettingsMenu();
         return header;
@@ -1007,21 +1004,6 @@ export class KeyboardUI {
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => this._container.hide(),
         });
-    }
-
-    toggleFloat() {
-        this._floating = !this._floating;
-        this._applyMode();
-        this._render();
-        if (this._visible) {
-            const [targetX, targetY] = this._targetPosition();
-            this._container.ease({
-                x: targetX,
-                y: targetY,
-                duration: SLIDE_MS,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            });
-        }
     }
 
     destroy() {
