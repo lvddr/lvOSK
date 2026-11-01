@@ -76,6 +76,7 @@ export class KeyboardUI {
         this._keypadOpen = false;
         this._settingsMenuOpen = false;
         this._hideSuppressedUntil = 0;
+        this._barTimer = 0;
         this._spyglassTimer = 0;
         this._spyglassPosTimer = 0;
         this._callout = null;
@@ -171,6 +172,8 @@ export class KeyboardUI {
 
         // Mount
         Main.layoutManager.uiGroup.add_child(this._container);
+
+        this._buildBar();
 
         this._spyglass = new St.Label({text: '', style_class: 'keyboard-spyglass'});
         Main.layoutManager.uiGroup.add_child(this._spyglass);
@@ -906,8 +909,68 @@ export class KeyboardUI {
         if (this._spyglass) this._spyglass.hide();
     }
 
+    _buildBar() {
+        this._bar = new St.Bin({
+            style_class: 'lvosk-panel-pill',
+            reactive: true,
+            can_focus: false,
+            x_expand: false,
+            y_expand: false,
+            child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 18, style: 'color: #1c1c1c;'}),
+        });
+        this._bar.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === 1) {
+                this.hideBar();
+                this.show();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this._bar.connect('touch-event', (actor, event) => {
+            if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
+                this.hideBar();
+                this.show();
+            }
+            return Clutter.EVENT_STOP;
+        });
+        Main.layoutManager.uiGroup.add_child(this._bar);
+        this._bar.hide();
+    }
+
+    showBar() {
+        if (this._visible) return;
+        if (this._bar.visible) return;
+        const m = this._monitor();
+        const size = 40;
+        this._bar.set_size(size, size);
+        // position lower right
+        this._bar.set_position(
+            m.x + m.width - size - 16,
+            m.y + m.height - size - 16);
+        this._bar.opacity = 0;
+        this._bar.show();
+        this._bar.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        if (this._barTimer) {
+            try { GLib.source_remove(this._barTimer); } catch (e) {}
+            this._barTimer = 0;
+        }
+    }
+
+    hideBar() {
+        if (this._barTimer) {
+            try { GLib.source_remove(this._barTimer); } catch (e) {}
+            this._barTimer = 0;
+        }
+        if (this._bar && this._bar.visible) {
+            this._bar.ease({opacity: 0, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: () => {
+                try { this._bar.hide(); this._bar.opacity = 255; } catch (e) {}
+            }});
+        }
+    }
+
     show() {
         if (this._visible) return;
+        this.hideBar();
         this._visible = true;
         this._applyMode();
         const m = this._monitor();
@@ -959,6 +1022,8 @@ export class KeyboardUI {
         try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
         try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
         try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
+        try { if (this._barTimer) GLib.source_remove(this._barTimer); } catch (e) {}
+        try { if (this._bar) this._bar.destroy(); } catch (e) {}
         try { this._container.destroy(); } catch (e) {}
     }
 }
