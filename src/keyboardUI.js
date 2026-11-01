@@ -434,25 +434,37 @@ export class KeyboardUI {
     }
 
     _fitKeypadHeight() {
-        // Make keypad keys the same height as letter keys. The pad will be
-        // taller than the letter grid (5 rows vs 4), which is fine.
+        // Stretch/squish the keypad rows so the pad is exactly as tall
+        // as the four-row letter grid beside it.
         const rows = this._keypadBox.get_children();
         if (!rows.length)
             return;
-        const letterRows = this._gridBox.get_children();
-        const keyHeight = letterRows.length
-            ? letterRows[0].get_preferred_height(-1)[1]
-            : 76;
-        for (const row of rows) {
-            row.set_height(keyHeight);
+        const lettersHeight = this._gridBox.get_preferred_height(-1)[1];
+        const gap = 6;
+        const totalGap = gap * (rows.length - 1);
+        const avail = lettersHeight - totalGap;
+        const base = Math.floor(avail / rows.length);
+        const rem = avail - base * rows.length;
+        rows.forEach((row, i) => {
+            const rh = Math.max(36, base + (i < rem ? 1 : 0));
+            row.set_height(rh);
             for (const key of row.get_children())
-                key.set_height(keyHeight);
-        }
+                key.set_height(rh);
+        });
     }
 
     toggleKeypad() {
         if (this._keypadOpen) {
-            this._closeKeypadAnimated();
+            this._keypadOpen = false;
+            this._render();
+            if (this._visible) {
+                const [targetX, targetY] = this._targetPosition();
+                this._container.ease({
+                    x: targetX, y: targetY,
+                    duration: 180,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            }
             return;
         }
 
