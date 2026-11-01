@@ -346,6 +346,15 @@ return null;
 }
 }
 const CLICK_SOUND = bundledSound('click.wav');
+function bundledPath(name) {
+try {
+const [path] = GLib.filename_from_uri(import.meta.url.split('?')[0]);
+return GLib.build_filenamev([GLib.path_get_dirname(path), name]);
+} catch (e) {
+return null;
+}
+}
+const KEYPAD_ICON_PATH = bundledPath('keypad-icon.svg');
 const CLICK_SOUND_OK = !!CLICK_SOUND && GLib.file_test(CLICK_SOUND, GLib.FileTest.EXISTS);
 const KEY_SIZE_FACTORS = {compact: 0.62, default: 0.82, large: 0.95};
 const KEY_SIZE_LABELS = {compact: 'Compact', default: 'Default', large: 'Large'};
@@ -489,7 +498,7 @@ vertical: false,
 });
 const leftGroup = new St.BoxLayout({style_class: 'header-left', });
 this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic'})});
-this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic'})});
+this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16})});
 this._layoutBtn.connect('clicked', () => this.toggleKeypad());
 this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
 leftGroup.add_child(this._settingsBtn);
