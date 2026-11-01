@@ -1,19 +1,6 @@
 # lvOSK
 
-A Windows 11-style on-screen keyboard for GNOME Shell, built because the default GNOME OSK is terrible.
-
-## Why not the default GNOME OSK?
-
-The built-in GNOME on-screen keyboard is, frankly, bad:
-
-- **Ugly and outdated** — it looks like it was designed in 2008 and never touched again.
-- **Terrible layout** — no proper key sizing, no useful alternates, no phone-style numpad.
-- **No feedback** — no key press animations, no callouts, no click sound worth listening to.
-- **Bare-bones settings** — basically nothing to configure.
-- **Inconsistent behavior** — shows up at random times, doesn't follow text focus reliably, especially in Chrome/Electron apps.
-- **No touch-friendly affordances** — tiny hit targets, no drag handle, no dock/float toggle.
-
-lvOSK replaces all of that with a modern, touch-friendly, Windows 11-inspired keyboard that actually feels good to use.
+A vibecoded on-screen keyboard for GNOME Shell, created to make Linux life easier.
 
 ## Screenshots
 
