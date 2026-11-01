@@ -71,9 +71,11 @@ Settings are stored in `~/.config/lvosk/settings.json`:
 
 ## Development
 
+Source files live in `src/`. The build bundles them into `main.js` at the project root.
+
 ```bash
-./build.sh          # bundle sources into main.js
-./install.sh        # copy to installed location
+./build.sh          # bundle src/* into main.js
+./install.sh        # copy runtime files to installed location
 gnome-extensions disable win11-osk@local
 gnome-extensions enable win11-osk@local   # hot reload
 ```
