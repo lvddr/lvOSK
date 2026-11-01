@@ -163,9 +163,10 @@
     background-color: #f2c94c;
     border: 1px solid #d4a017;
     border-radius: 999px;
-    padding: 0;
+    padding: 0 8px;
     margin: 0;
     color: #1c1c1c;
+    min-width: 36px;
 }
 
 .lvosk-panel-pill:hover {
