@@ -208,8 +208,8 @@ export class KeyboardUI {
         });
 
         const leftGroup = new St.BoxLayout({style_class: 'header-left', });
-        this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 14})});
-        this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 14})});
+        this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 15})});
+        this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 15})});
         this._layoutBtn.connect('clicked', () => this.toggleKeypad());
         this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
         leftGroup.add_child(this._settingsBtn);
@@ -220,8 +220,8 @@ export class KeyboardUI {
         center.reactive = true;
 
         const rightGroup = new St.BoxLayout({style_class: 'header-right', });
-        this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 14})});
-        const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 14})});
+        this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 15})});
+        const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 15})});
         rightGroup.add_child(this._dockBtn);
         rightGroup.add_child(closeBtn);
 
