@@ -1,0 +1,9 @@
+{
+  "uuid": "win11-osk@betterosk",
+  "name": "lvOSK",
+  "description": "Replaces the default GNOME OSK with a Windows 11 touch keyboard inspired layout and styling.",
+  "version": 1,
+  "shell-version": [
+    "50"
+  ]
+}
