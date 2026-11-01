@@ -455,16 +455,7 @@ export class KeyboardUI {
 
     toggleKeypad() {
         if (this._keypadOpen) {
-            this._keypadOpen = false;
-            this._render();
-            if (this._visible) {
-                const [targetX, targetY] = this._targetPosition();
-                this._container.ease({
-                    x: targetX, y: targetY,
-                    duration: 180,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
-            }
+            this._closeKeypadAnimated();
             return;
         }
 
@@ -487,16 +478,19 @@ export class KeyboardUI {
         const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
 
         // Letters slide left while the keypad fades and slides in from the
-        // right edge.
-        this._gridBox.translation_x = centerOffset;
-        this._keypadBox.translation_x = keypadWidth + 24;
-        this._keypadBox.opacity = 0;
-        const params = {
-            duration: 220,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        };
-        this._gridBox.ease({...params, translation_x: 0});
-        this._keypadBox.ease({...params, translation_x: 0, opacity: 255});
+        // right edge. Defer to idle so layout (height fitting) completes first.
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._gridBox.translation_x = centerOffset;
+            this._keypadBox.translation_x = keypadWidth + 24;
+            this._keypadBox.opacity = 0;
+            const params = {
+                duration: 220,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            };
+            this._gridBox.ease({...params, translation_x: 0});
+            this._keypadBox.ease({...params, translation_x: 0, opacity: 255});
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _closeKeypadAnimated() {
@@ -514,16 +508,19 @@ export class KeyboardUI {
             ? 12
             : (container - groupWidth) / 2 + 12;
         const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
-        const params = {
-            duration: 180,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onComplete: () => {
-                this._keypadOpen = false;
-                this._render();
-            },
-        };
-        this._keypadBox.ease({...params, translation_x: keypadWidth + 24, opacity: 0});
-        this._gridBox.ease({...params, translation_x: centerOffset});
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            const params = {
+                duration: 180,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    this._keypadOpen = false;
+                    this._render();
+                },
+            };
+            this._keypadBox.ease({...params, translation_x: keypadWidth + 24, opacity: 0});
+            this._gridBox.ease({...params, translation_x: centerOffset});
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _populate(rows, box, width, isKeypad) {
