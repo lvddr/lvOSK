@@ -23,6 +23,12 @@ super._init({style_class: 'key-container', x_expand: true});
 this.spec = spec;
 this._pressed = false;
 this._pressTimeout = 0;
+this.connect('destroy', () => {
+if (this._pressTimeout) {
+try { GLib.source_remove(this._pressTimeout); } catch (e) {}
+this._pressTimeout = 0;
+}
+});
 this._secondaryPos = this._inferSecondaryPos(spec);
 this.button = this._build(spec);
 this.add_child(this.button);
@@ -165,6 +171,13 @@ setLabel(text) {
 if (this._label)
 this._label.set_text(text);
 }
+vfunc_destroy() {
+if (this._pressTimeout) {
+try { GLib.source_remove(this._pressTimeout); } catch (e) {}
+this._pressTimeout = 0;
+}
+super.vfunc_destroy();
+}
 });
 // ===== layouts.js =====
 const L = (s, sec = null, w = 1) => ({type: 'char', label: s, secondary: sec, width: w});
@@ -257,7 +270,6 @@ LAYOUTS.keypad = [
 [kp('4'), kp('5'), kp('6')],
 [kp('7'), kp('8'), kp('9')],
 [kp('*'), kp('0'), kp('#')],
-[{type: 'action', action: 'backspace', icon: 'edit-clear-symbolic', width: 3.0}],
 ];
 // ===== inputController.js =====
 class InputController {
@@ -438,8 +450,12 @@ this._barTimer = 0;
 this._spyglassTimer = 0;
 this._spyglassPosTimer = 0;
 this._callout = null;
+this._calloutTimeout = 0;
+this._destroyed = false;
 this._visible = false;
 this._height = 420;
+this._renderScheduled = false;
+this._barTimer = 0;
 this._settings = Object.assign(
 {keySize: 'compact', sound: false, autoShow: false},
 loadSettings());
@@ -543,17 +559,15 @@ vertical: false,
 });
 const leftGroup = new St.BoxLayout({style_class: 'header-left', });
 this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 15})});
-this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 15})});
+this._layoutBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Label({text: 'Keypad', style_class: 'lvosk-header-button-label'})});
 this._layoutBtn.connect('clicked', () => this.toggleKeypad());
 this._settingsBtn.connect('clicked', () => this._settingsMenu.toggle());
 leftGroup.add_child(this._settingsBtn);
-leftGroup.add_child(this._layoutBtn);
 const center = new St.BoxLayout({x_expand: true});
 center.reactive = true;
 const rightGroup = new St.BoxLayout({style_class: 'header-right', });
-this._dockBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-minimize-symbolic', icon_size: 15})});
 const closeBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: 15})});
-rightGroup.add_child(this._dockBtn);
+rightGroup.add_child(this._layoutBtn);
 rightGroup.add_child(closeBtn);
 header.add_child(leftGroup);
 header.add_child(center);
@@ -576,7 +590,6 @@ center.connect('button-press-event', onDown);
 center.connect('motion-event', onMotion);
 center.connect('button-release-event', onUp);
 closeBtn.connect('clicked', () => this.hide());
-this._dockBtn.connect('clicked', () => this.toggleFloat());
 this._buildSettingsMenu();
 return header;
 }
@@ -604,7 +617,7 @@ this._keySizeItem.label.text =
 `Key size: ${KEY_SIZE_LABELS[this._settings.keySize]}`;
 saveSettings(this._settings);
 this._applyMode();
-this._render();
+this._scheduleRender();
 if (this._visible) {
 const [x, y] = this._targetPosition();
 this._container.ease({
@@ -695,7 +708,21 @@ return 0;
 const container = this._containerPixelWidth();
 return Math.round(Math.min(360, Math.max(220, container * 0.24)));
 }
+_scheduleRender() {
+if (this._renderScheduled)
+return;
+this._renderScheduled = true;
+GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+this._renderScheduled = false;
+if (this._destroyed)
+return GLib.SOURCE_REMOVE;
+try { this._render(); } catch (e) { console.error('lvosk render error: ' + e); }
+return GLib.SOURCE_REMOVE;
+});
+}
 _render() {
+this._renderScheduled = false;
+this._hideCallout();
 const container = this._containerPixelWidth();
 const content = this._contentWidth();
 const keypadWidth = this._keypadWidth();
@@ -738,13 +765,16 @@ if (!rows.length)
 return;
 const lettersHeight = this._gridBox.get_preferred_height(-1)[1];
 const gap = 6;
-const rowHeight = Math.max(
-36, Math.floor((lettersHeight - gap * (rows.length - 1)) / rows.length));
-for (const row of rows) {
-row.set_height(rowHeight);
+const totalGap = gap * (rows.length - 1);
+const avail = lettersHeight - totalGap;
+const base = Math.floor(avail / rows.length);
+const rem = avail - base * rows.length;
+rows.forEach((row, i) => {
+const rh = Math.max(36, base + (i < rem ? 1 : 0));
+row.set_height(rh);
 for (const key of row.get_children())
-key.set_height(rowHeight);
-}
+key.set_height(rh);
+});
 }
 toggleKeypad() {
 if (this._keypadOpen) {
@@ -753,9 +783,12 @@ return;
 }
 this._keypadOpen = true;
 this._shiftMode = 'none';
+if (!this._visible) {
 this._render();
-if (!this._visible)
 return;
+}
+GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+this._render();
 const container = this._containerPixelWidthCache || this._containerPixelWidth();
 const lettersWidth = this._lettersWidth || 0;
 const keypadWidth = this._keypadPixelWidth || 0;
@@ -764,6 +797,7 @@ const finalLettersX = groupWidth >= container
 ? 12
 : (container - groupWidth) / 2 + 12;
 const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
+GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
 this._gridBox.translation_x = centerOffset;
 this._keypadBox.translation_x = keypadWidth + 24;
 this._keypadBox.opacity = 0;
@@ -773,6 +807,10 @@ mode: Clutter.AnimationMode.EASE_OUT_QUAD,
 };
 this._gridBox.ease({...params, translation_x: 0});
 this._keypadBox.ease({...params, translation_x: 0, opacity: 255});
+return GLib.SOURCE_REMOVE;
+});
+return GLib.SOURCE_REMOVE;
+});
 }
 _closeKeypadAnimated() {
 if (!this._visible) {
@@ -788,6 +826,7 @@ const finalLettersX = groupWidth >= container
 ? 12
 : (container - groupWidth) / 2 + 12;
 const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
+GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
 const params = {
 duration: 180,
 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
@@ -798,6 +837,8 @@ this._render();
 };
 this._keypadBox.ease({...params, translation_x: keypadWidth + 24, opacity: 0});
 this._gridBox.ease({...params, translation_x: centerOffset});
+return GLib.SOURCE_REMOVE;
+});
 }
 _populate(rows, box, width, isKeypad) {
 rows.forEach((row) => {
@@ -852,6 +893,12 @@ return Math.max(20, (width - gaps) / totalUnits);
 _wireKey(key, spec) {
 const repeatable = this._isRepeatable(spec);
 key.connect('long-press', () => {
+if (spec.type === 'action' && spec.action === 'shift') {
+key._longPressed = true;
+this._handleShiftLock();
+this._scheduleRender();
+return;
+}
 if (!spec.secondary)
 return;
 key._longPressed = true;
@@ -868,7 +915,7 @@ this._input.sendKeyval(Clutter.KEY_space);
 else if (spec.type === 'action')
 this._performAction(spec, key);
 this._startRepeat(spec, key);
-} else if (spec.type === 'action') {
+} else if (spec.type === 'action' && spec.action !== 'shift') {
 this._performAction(spec, key);
 }
 });
@@ -877,8 +924,17 @@ this._hideCallout();
 this._stopRepeat();
 if (repeatable)
 return;
-if (spec.type === 'action')
+if (spec.type === 'action') {
+if (spec.action === 'shift') {
+if (key._longPressed) {
+key._longPressed = false;
 return;
+}
+this._handleShiftTap();
+this._scheduleRender();
+}
+return;
+}
 if (key._longPressed) {
 key._longPressed = false;
 return;
@@ -909,19 +965,19 @@ this._input.sendKeyval(Clutter.KEY_Right);
 break;
 case 'shift':
 this._handleShiftTap();
-this._render();
+this._scheduleRender();
 break;
 case 'ctrl':
 this._ctrlSticky = !this._ctrlSticky;
-this._render();
+this._scheduleRender();
 break;
 case 'symbols':
 this._layerName = 'symbols';
-this._render();
+this._scheduleRender();
 break;
 case 'abc':
 this._layerName = this._shiftMode === 'none' ? 'default' : 'shift';
-this._render();
+this._scheduleRender();
 break;
 case 'mic':
 this._input.sendSuperH();
@@ -935,20 +991,27 @@ break;
 }
 }
 _handleShiftTap() {
-const now = GLib.get_monotonic_time() / 1000;
 if (this._shiftMode === 'locked') {
 this._shiftMode = 'none';
 this._layerName = 'default';
-return;
-}
-if (this._lastShiftTap && (now - this._lastShiftTap) < 300) {
-this._shiftMode = 'locked';
-this._layerName = 'shift';
+} else if (this._shiftMode === 'latched') {
+this._shiftMode = 'none';
+this._layerName = 'default';
 } else {
 this._shiftMode = 'latched';
 this._layerName = 'shift';
 }
-this._lastShiftTap = now;
+this._lastShiftTap = 0;
+}
+_handleShiftLock() {
+if (this._shiftMode === 'locked') {
+this._shiftMode = 'none';
+this._layerName = 'default';
+} else {
+this._shiftMode = 'locked';
+this._layerName = 'shift';
+}
+this._lastShiftTap = 0;
 }
 _performChar(spec, key) {
 let ch = spec.label;
@@ -957,14 +1020,15 @@ ch = ch.toUpperCase();
 if (this._ctrlSticky) {
 this._input.sendCtrlCombo(this._charToKeyval(ch));
 this._ctrlSticky = false;
-this._render();
+this._scheduleRender();
 } else {
 this._input.sendKeyval(this._charToKeyval(ch));
 }
 if (this._shiftMode === 'latched') {
 this._shiftMode = 'none';
 this._layerName = 'default';
-this._render();
+this._lastShiftTap = 0;
+this._scheduleRender();
 }
 }
 _charToKeyval(ch) {
@@ -1011,7 +1075,8 @@ _afterChar() {
 if (this._shiftMode === 'latched') {
 this._shiftMode = 'none';
 this._layerName = 'default';
-this._render();
+this._lastShiftTap = 0;
+this._scheduleRender();
 }
 }
 _startRepeat(spec, key) {
@@ -1057,20 +1122,33 @@ const popup = new St.Label({text: String(text), style_class: 'key-callout'});
 popup.hide();
 Main.layoutManager.uiGroup.add_child(popup);
 this._callout = popup;
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+let kx = 0, ky = 0, kw = 0, kh = 0;
 try {
-const [kx, ky] = key.get_transformed_position();
-const [kw, kh] = key.get_size();
+[kx, ky] = key.get_transformed_position();
+[kw, kh] = key.get_size();
+} catch (e) {
+}
+if (this._calloutTimeout) {
+try { GLib.source_remove(this._calloutTimeout); } catch (e) {}
+this._calloutTimeout = 0;
+}
+this._calloutTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+this._calloutTimeout = 0;
+try {
 const [pw, ph] = popup.get_size();
 const cx = kx + kw / 2 - pw / 2;
 const cy = ky - ph - 12;
 popup.set_position(Math.round(cx), Math.round(cy));
-popup.show();
+if (popup) popup.show();
 } catch (e) {}
 return GLib.SOURCE_REMOVE;
 });
 }
 _hideCallout() {
+if (this._calloutTimeout) {
+try { GLib.source_remove(this._calloutTimeout); } catch (e) {}
+this._calloutTimeout = 0;
+}
 if (this._callout) {
 try { this._callout.destroy(); } catch (e) {}
 this._callout = null;
@@ -1234,34 +1312,25 @@ mode: Clutter.AnimationMode.EASE_OUT_QUAD,
 onComplete: () => this._container.hide(),
 });
 }
-toggleFloat() {
-this._floating = !this._floating;
-this._applyMode();
-this._render();
-if (this._visible) {
-const [targetX, targetY] = this._targetPosition();
-this._container.ease({
-x: targetX,
-y: targetY,
-duration: SLIDE_MS,
-mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-});
-}
-}
 destroy() {
+this._destroyed = true;
 try { this._input.destroy(); } catch (e) {}
 try { if (this._settingsMenu) this._settingsMenu.destroy(); } catch (e) {}
 try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
 try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
 try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
+try { if (this._calloutTimeout) GLib.source_remove(this._calloutTimeout); } catch (e) {}
+this._calloutTimeout = 0;
 try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
 try { if (this._barTimer) GLib.source_remove(this._barTimer); } catch (e) {}
+this._barTimer = 0;
 try { if (this._bar) this._bar.destroy(); } catch (e) {}
 try { this._container.destroy(); } catch (e) {}
 }
 }
 // ===== impl.js =====
 let _kb = null;
+let _indicator = null;
 let _saved = null;
 let _a11ySettings = null;
 let _savedScreenKeyboard = null;
@@ -1274,6 +1343,16 @@ try {
 if (Main.keyboard && Main.keyboard.keyboardActor)
 Main.keyboard.keyboardActor.visible = false;
 } catch (e) {}
+}
+function _hasPhysicalKeyboard() {
+try {
+const [ok, bytes] = GLib.file_get_contents('/proc/bus/input/devices');
+if (!ok) return true;
+const text = new TextDecoder().decode(bytes);
+return /Handlers=.*kbd/.test(text);
+} catch (e) {
+return true;
+}
 }
 function enable() {
 _kb = new KeyboardUI();
@@ -1314,8 +1393,11 @@ _hideGnomeKeyboard();
 _saved.touchHandlerId = global.stage.connect('captured-event', (actor, event) => {
 try {
 if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
-if (_kb) _kb.showBar();
-} else if (event.type() === Clutter.EventType.MOTION || event.type() === Clutter.EventType.BUTTON_PRESS) {
+let seq = null;
+try { seq = event.get_event_sequence(); } catch (e) { seq = null; }
+if (seq !== null && _kb) _kb.showBar();
+} else if (event.type() === Clutter.EventType.MOTION ||
+event.type() === Clutter.EventType.BUTTON_PRESS) {
 if (_kb) _kb.hideBar();
 }
 } catch (e) {}
@@ -1354,8 +1436,24 @@ if (!_savedScreenKeyboard)
 _a11ySettings.set_boolean('screen-keyboard-enabled', true);
 _hideGnomeKeyboard();
 } catch (e) {
-console.error('lvosk hook error: ' + e);
+console.error('win11-osk hook error: ' + e);
 }
+if (!_hasPhysicalKeyboard()) {
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+try { if (_kb) _kb.showBar(); } catch (e) {}
+return GLib.SOURCE_REMOVE;
+});
+}
+_indicator = new PanelMenu.Button(0.0, 'win11-osk', true);
+_indicator.add_child(new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 16}));
+_indicator.connect('button-press-event', (actor, event) => {
+if (event.get_button() === 1) {
+_toggle();
+return Clutter.EVENT_STOP;
+}
+return Clutter.EVENT_PROPAGATE;
+});
+Main.panel.addToStatusArea('win11-osk', _indicator, 0, 'right');
 }
 function disable() {
 try {
@@ -1380,17 +1478,21 @@ try { global.stage.disconnect(_saved.touchHandlerId); } catch (e) {}
 }
 }
 } catch (e) {
-console.error('lvosk unhook error: ' + e);
+console.error('win11-osk unhook error: ' + e);
 }
 _saved = null;
 try {
 if (_a11ySettings && _savedScreenKeyboard === false)
 _a11ySettings.set_boolean('screen-keyboard-enabled', false);
 } catch (e) {
-console.error('lvosk setting restore error: ' + e);
+console.error('win11-osk setting restore error: ' + e);
 }
 _a11ySettings = null;
 _savedScreenKeyboard = null;
+if (_indicator) {
+try { _indicator.destroy(); } catch (e) {}
+_indicator = null;
+}
 if (_kb) {
 _kb.destroy();
 _kb = null;

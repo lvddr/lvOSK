@@ -18,6 +18,13 @@ export const LvOSKKey = GObject.registerClass({
         this.spec = spec;
         this._pressed = false;
         this._pressTimeout = 0;
+        // Safety net: cancel the long-press timer if the widget is destroyed.
+        this.connect('destroy', () => {
+            if (this._pressTimeout) {
+                try { GLib.source_remove(this._pressTimeout); } catch (e) {}
+                this._pressTimeout = 0;
+            }
+        });
         this._secondaryPos = this._inferSecondaryPos(spec);
         this.button = this._build(spec);
         this.add_child(this.button);
@@ -185,5 +192,15 @@ export const LvOSKKey = GObject.registerClass({
     setLabel(text) {
         if (this._label)
             this._label.set_text(text);
+    }
+
+    vfunc_destroy() {
+        // Cancel any pending long-press timer so it cannot fire on a
+        // destroyed (and disposed) actor, which would crash GNOME Shell.
+        if (this._pressTimeout) {
+            try { GLib.source_remove(this._pressTimeout); } catch (e) {}
+            this._pressTimeout = 0;
+        }
+        super.vfunc_destroy();
     }
 });

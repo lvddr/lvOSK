@@ -80,8 +80,12 @@ export class KeyboardUI {
         this._spyglassTimer = 0;
         this._spyglassPosTimer = 0;
         this._callout = null;
+        this._calloutTimeout = 0;
+        this._destroyed = false;
         this._visible = false;
         this._height = 420;
+        this._renderScheduled = false;
+        this._barTimer = 0;
         this._settings = Object.assign(
             {keySize: 'compact', sound: false, autoShow: false},
             loadSettings());
@@ -281,7 +285,7 @@ export class KeyboardUI {
                 `Key size: ${KEY_SIZE_LABELS[this._settings.keySize]}`;
             saveSettings(this._settings);
             this._applyMode();
-            this._render();
+            this._scheduleRender();
             if (this._visible) {
                 const [x, y] = this._targetPosition();
                 this._container.ease({
@@ -383,7 +387,24 @@ export class KeyboardUI {
         return Math.round(Math.min(360, Math.max(220, container * 0.24)));
     }
 
+    _scheduleRender() {
+        if (this._renderScheduled)
+            return;
+        this._renderScheduled = true;
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._renderScheduled = false;
+            if (this._destroyed)
+                return GLib.SOURCE_REMOVE;
+            try { this._render(); } catch (e) { console.error('lvosk render error: ' + e); }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _render() {
+        this._renderScheduled = false;
+        // Drop any in-flight callout so we never paint/position a label while
+        // its associated key is being destroyed (crashes GNOME Shell).
+        this._hideCallout();
         const container = this._containerPixelWidth();
         const content = this._contentWidth();
         const keypadWidth = this._keypadWidth();
@@ -458,34 +479,40 @@ export class KeyboardUI {
 
         this._keypadOpen = true;
         this._shiftMode = 'none';
-        this._render();
-        if (!this._visible)
+        if (!this._visible) {
+            this._render();
             return;
+        }
 
-        const container = this._containerPixelWidthCache || this._containerPixelWidth();
-        const lettersWidth = this._lettersWidth || 0;
-        const keypadWidth = this._keypadPixelWidth || 0;
-        // The letters+keypad group is centered, so when the keypad appears the
-        // letters shift left by roughly half of it. Start them where they were
-        // centered on their own.
-        const groupWidth = lettersWidth + keypadWidth + 36;
-        const finalLettersX = groupWidth >= container
-            ? 12
-            : (container - groupWidth) / 2 + 12;
-        const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
-
-        // Letters slide left while the keypad fades and slides in from the
-        // right edge. Defer to idle so layout (height fitting) completes first.
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._gridBox.translation_x = centerOffset;
-            this._keypadBox.translation_x = keypadWidth + 24;
-            this._keypadBox.opacity = 0;
-            const params = {
-                duration: 220,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            };
-            this._gridBox.ease({...params, translation_x: 0});
-            this._keypadBox.ease({...params, translation_x: 0, opacity: 255});
+            this._render();
+
+            const container = this._containerPixelWidthCache || this._containerPixelWidth();
+            const lettersWidth = this._lettersWidth || 0;
+            const keypadWidth = this._keypadPixelWidth || 0;
+            // The letters+keypad group is centered, so when the keypad appears the
+            // letters shift left by roughly half of it. Start them where they were
+            // centered on their own.
+            const groupWidth = lettersWidth + keypadWidth + 36;
+            const finalLettersX = groupWidth >= container
+                ? 12
+                : (container - groupWidth) / 2 + 12;
+            const centerOffset = Math.max(0, (container - lettersWidth) / 2 - finalLettersX);
+
+            // Letters slide left while the keypad fades and slides in from the
+            // right edge. Defer to idle so layout (height fitting) completes first.
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._gridBox.translation_x = centerOffset;
+                this._keypadBox.translation_x = keypadWidth + 24;
+                this._keypadBox.opacity = 0;
+                const params = {
+                    duration: 220,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                };
+                this._gridBox.ease({...params, translation_x: 0});
+                this._keypadBox.ease({...params, translation_x: 0, opacity: 255});
+                return GLib.SOURCE_REMOVE;
+            });
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -589,6 +616,13 @@ export class KeyboardUI {
         const repeatable = this._isRepeatable(spec);
 
         key.connect('long-press', () => {
+            // Shift: long-press toggles caps-lock without affecting a quick tap.
+            if (spec.type === 'action' && spec.action === 'shift') {
+                key._longPressed = true;
+                this._handleShiftLock();
+                this._scheduleRender();
+                return;
+            }
             if (!spec.secondary)
                 return;
             key._longPressed = true;
@@ -606,7 +640,7 @@ export class KeyboardUI {
                 else if (spec.type === 'action')
                     this._performAction(spec, key);
                 this._startRepeat(spec, key);
-            } else if (spec.type === 'action') {
+            } else if (spec.type === 'action' && spec.action !== 'shift') {
                 this._performAction(spec, key);
             }
             // char keys handled on release
@@ -617,8 +651,17 @@ export class KeyboardUI {
             this._stopRepeat();
             if (repeatable)
                 return;
-            if (spec.type === 'action')
+            if (spec.type === 'action') {
+                if (spec.action === 'shift') {
+                    if (key._longPressed) {
+                        key._longPressed = false;
+                        return; // locked via long-press; ignore release
+                    }
+                    this._handleShiftTap();
+                    this._scheduleRender();
+                }
                 return;
+            }
             // char key
             if (key._longPressed) {
                 key._longPressed = false;
@@ -652,19 +695,19 @@ export class KeyboardUI {
                 break;
             case 'shift':
                 this._handleShiftTap();
-                this._render();
+                this._scheduleRender();
                 break;
             case 'ctrl':
                 this._ctrlSticky = !this._ctrlSticky;
-                this._render();
+                this._scheduleRender();
                 break;
             case 'symbols':
                 this._layerName = 'symbols';
-                this._render();
+                this._scheduleRender();
                 break;
             case 'abc':
                 this._layerName = this._shiftMode === 'none' ? 'default' : 'shift';
-                this._render();
+                this._scheduleRender();
                 break;
             case 'mic':
                 this._input.sendSuperH();
@@ -680,20 +723,31 @@ export class KeyboardUI {
     }
 
     _handleShiftTap() {
-        const now = GLib.get_monotonic_time() / 1000;
+        // Single tap toggles shift on/off without any timing cooldown.
         if (this._shiftMode === 'locked') {
             this._shiftMode = 'none';
             this._layerName = 'default';
-            return;
-        }
-        if (this._lastShiftTap && (now - this._lastShiftTap) < 300) {
-            this._shiftMode = 'locked';
-            this._layerName = 'shift';
+        } else if (this._shiftMode === 'latched') {
+            this._shiftMode = 'none';
+            this._layerName = 'default';
         } else {
             this._shiftMode = 'latched';
             this._layerName = 'shift';
         }
-        this._lastShiftTap = now;
+        this._lastShiftTap = 0;
+    }
+
+    _handleShiftLock() {
+        // Caps-lock style lock, triggered by long-press so a quick tap can
+        // always turn shift off immediately (no double-tap cooldown).
+        if (this._shiftMode === 'locked') {
+            this._shiftMode = 'none';
+            this._layerName = 'default';
+        } else {
+            this._shiftMode = 'locked';
+            this._layerName = 'shift';
+        }
+        this._lastShiftTap = 0;
     }
 
     _performChar(spec, key) {
@@ -704,7 +758,7 @@ export class KeyboardUI {
         if (this._ctrlSticky) {
             this._input.sendCtrlCombo(this._charToKeyval(ch));
             this._ctrlSticky = false;
-            this._render();
+            this._scheduleRender();
         } else {
             this._input.sendKeyval(this._charToKeyval(ch));
         }
@@ -712,7 +766,8 @@ export class KeyboardUI {
         if (this._shiftMode === 'latched') {
             this._shiftMode = 'none';
             this._layerName = 'default';
-            this._render();
+            this._lastShiftTap = 0;
+            this._scheduleRender();
         }
         // secondary? no, primary only
     }
@@ -764,7 +819,8 @@ export class KeyboardUI {
         if (this._shiftMode === 'latched') {
             this._shiftMode = 'none';
             this._layerName = 'default';
-            this._render();
+            this._lastShiftTap = 0;
+            this._scheduleRender();
         }
     }
 
@@ -814,22 +870,39 @@ export class KeyboardUI {
         popup.hide();
         Main.layoutManager.uiGroup.add_child(popup);
         this._callout = popup;
+        // Capture the key's position up front, while it is still alive. The
+        // deferred positioning below must not touch the (possibly destroyed)
+        // key, since that can crash GNOME Shell.
+        let kx = 0, ky = 0, kw = 0, kh = 0;
+        try {
+            [kx, ky] = key.get_transformed_position();
+            [kw, kh] = key.get_size();
+        } catch (e) {
+            // key gone; still try to show popup at origin
+        }
         // position after allocation, then show (avoids top-left flash)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+        if (this._calloutTimeout) {
+            try { GLib.source_remove(this._calloutTimeout); } catch (e) {}
+            this._calloutTimeout = 0;
+        }
+        this._calloutTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+            this._calloutTimeout = 0;
             try {
-                const [kx, ky] = key.get_transformed_position();
-                const [kw, kh] = key.get_size();
                 const [pw, ph] = popup.get_size();
                 const cx = kx + kw / 2 - pw / 2;
                 const cy = ky - ph - 12;
                 popup.set_position(Math.round(cx), Math.round(cy));
-                popup.show();
+                if (popup) popup.show();
             } catch (e) {}
             return GLib.SOURCE_REMOVE;
         });
     }
 
     _hideCallout() {
+        if (this._calloutTimeout) {
+            try { GLib.source_remove(this._calloutTimeout); } catch (e) {}
+            this._calloutTimeout = 0;
+        }
         if (this._callout) {
             try { this._callout.destroy(); } catch (e) {}
             this._callout = null;
@@ -1007,13 +1080,17 @@ export class KeyboardUI {
     }
 
     destroy() {
+        this._destroyed = true;
         try { this._input.destroy(); } catch (e) {}
         try { if (this._settingsMenu) this._settingsMenu.destroy(); } catch (e) {}
         try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
         try { if (this._spyglassTimer) GLib.source_remove(this._spyglassTimer); } catch (e) {}
         try { if (this._spyglassPosTimer) GLib.source_remove(this._spyglassPosTimer); } catch (e) {}
+        try { if (this._calloutTimeout) GLib.source_remove(this._calloutTimeout); } catch (e) {}
+        this._calloutTimeout = 0;
         try { if (this._spyglass) this._spyglass.destroy(); } catch (e) {}
         try { if (this._barTimer) GLib.source_remove(this._barTimer); } catch (e) {}
+        this._barTimer = 0;
         try { if (this._bar) this._bar.destroy(); } catch (e) {}
         try { this._container.destroy(); } catch (e) {}
     }

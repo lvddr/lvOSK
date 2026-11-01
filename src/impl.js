@@ -1,4 +1,5 @@
 let _kb = null;
+let _indicator = null;
 let _saved = null;
 let _a11ySettings = null;
 let _savedScreenKeyboard = null;
@@ -13,6 +14,17 @@ function _hideGnomeKeyboard() {
         if (Main.keyboard && Main.keyboard.keyboardActor)
             Main.keyboard.keyboardActor.visible = false;
     } catch (e) {}
+}
+
+function _hasPhysicalKeyboard() {
+    try {
+        const [ok, bytes] = GLib.file_get_contents('/proc/bus/input/devices');
+        if (!ok) return true;
+        const text = new TextDecoder().decode(bytes);
+        return /Handlers=.*kbd/.test(text);
+    } catch (e) {
+        return true;
+    }
 }
 
 export function enable() {
@@ -55,12 +67,16 @@ export function enable() {
             _hideGnomeKeyboard();
         }
 
-        // Touch-triggered floating button: show on any touchscreen tap.
+        // Detect touchscreen usage in any application: the shell's capture
+        // phase sees touch events before they reach app windows.
         _saved.touchHandlerId = global.stage.connect('captured-event', (actor, event) => {
             try {
                 if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
-                    if (_kb) _kb.showBar();
-                } else if (event.type() === Clutter.EventType.MOTION || event.type() === Clutter.EventType.BUTTON_PRESS) {
+                    let seq = null;
+                    try { seq = event.get_event_sequence(); } catch (e) { seq = null; }
+                    if (seq !== null && _kb) _kb.showBar();
+                } else if (event.type() === Clutter.EventType.MOTION ||
+                           event.type() === Clutter.EventType.BUTTON_PRESS) {
                     if (_kb) _kb.hideBar();
                 }
             } catch (e) {}
@@ -101,8 +117,26 @@ export function enable() {
             _a11ySettings.set_boolean('screen-keyboard-enabled', true);
         _hideGnomeKeyboard();
     } catch (e) {
-        console.error('lvosk hook error: ' + e);
+        console.error('win11-osk hook error: ' + e);
     }
+
+    if (!_hasPhysicalKeyboard()) {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            try { if (_kb) _kb.showBar(); } catch (e) {}
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _indicator = new PanelMenu.Button(0.0, 'win11-osk', true);
+    _indicator.add_child(new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 16}));
+    _indicator.connect('button-press-event', (actor, event) => {
+        if (event.get_button() === 1) {
+            _toggle();
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    });
+    Main.panel.addToStatusArea('win11-osk', _indicator, 0, 'right');
 }
 
 export function disable() {
@@ -128,7 +162,7 @@ export function disable() {
             }
         }
     } catch (e) {
-        console.error('lvosk unhook error: ' + e);
+        console.error('win11-osk unhook error: ' + e);
     }
     _saved = null;
 
@@ -136,11 +170,15 @@ export function disable() {
         if (_a11ySettings && _savedScreenKeyboard === false)
             _a11ySettings.set_boolean('screen-keyboard-enabled', false);
     } catch (e) {
-        console.error('lvosk setting restore error: ' + e);
+        console.error('win11-osk setting restore error: ' + e);
     }
     _a11ySettings = null;
     _savedScreenKeyboard = null;
 
+    if (_indicator) {
+        try { _indicator.destroy(); } catch (e) {}
+        _indicator = null;
+    }
     if (_kb) {
         _kb.destroy();
         _kb = null;
