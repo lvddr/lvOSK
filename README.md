@@ -6,7 +6,6 @@ A vibecoded on-screen keyboard for GNOME Shell, created to make Linux life easie
 
 ![lvOSK keyboard](img/screenshot1.png)
 
-![lvOSK keyboard with keypad](img/screenshot2.png)
 
 ## Features
 
