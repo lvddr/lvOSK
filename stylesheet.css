@@ -179,4 +179,6 @@
 .lvosk-panel-pill-icon {
     color: #1c1c1c;
     icon-size: 14px;
+    margin: 0;
+    padding: 0;
 }

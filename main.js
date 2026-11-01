@@ -1267,7 +1267,7 @@ _indicator = new St.Button({
 style_class: 'lvosk-panel-pill',
 can_focus: false,
 reactive: true,
-child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 14, style: 'color: #1c1c1c;'}),
+child: new St.Icon({icon_name: 'input-keyboard-symbolic', icon_size: 14, style_class: 'lvosk-panel-pill-icon', style: 'color: #1c1c1c; margin: 0; padding: 0;'}),
 });
 _indicator.connect('clicked', () => {
 _toggle();
