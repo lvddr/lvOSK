@@ -39,6 +39,14 @@ cd lvOSK
 gnome-extensions enable win11-osk@local
 ```
 
+### Install from a release
+Download the source archive from the [latest release](https://github.com/lvddr/lvOSK/releases/latest), extract it, then:
+```bash
+cd lvOSK-*
+./install.sh
+gnome-extensions enable win11-osk@local
+```
+
 Then log out and back in (or restart GNOME Shell) so the extension is discovered.
 
 ## Usage
