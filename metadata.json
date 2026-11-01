@@ -1,7 +1,7 @@
 {
-  "uuid": "win11-osk@betterosk",
+  "uuid": "win11-osk@local",
   "name": "lvOSK",
-  "description": "Replaces the default GNOME OSK with a Windows 11 touch keyboard inspired layout and styling.",
+  "description": "On-screen keyboard with Windows 11 style layout and touch support.",
   "version": 1,
   "shell-version": [
     "50"
