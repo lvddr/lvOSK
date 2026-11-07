@@ -1628,16 +1628,6 @@ try { this._carouselActiveKey.remove_style_pseudo_class('hover'); } catch (e) {}
 }
 try { btn.add_style_pseudo_class('hover'); } catch (e) {}
 this._carouselActiveKey = btn;
-if (this._carouselHeld) {
-this._insertChar(btn._carouselChar);
-this._previewText += btn._carouselChar;
-this._updateSpyglass();
-btn.add_style_pseudo_class('active');
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60, () => {
-try { btn.remove_style_pseudo_class('active'); } catch (e) {}
-return GLib.SOURCE_REMOVE;
-});
-}
 return Clutter.EVENT_PROPAGATE;
 });
 btn.connect('leave-event', () => {
