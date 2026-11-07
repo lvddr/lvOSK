@@ -899,6 +899,7 @@ export class KeyboardUI {
             }
 
             row.forEach((spec) => {
+                spec.alt = !!(this._specialChars && this._specialChars[spec.label]);
                 const key = new LvOSKKey(spec);
                 if (spec.type === 'char' && /^[a-zA-Z]$/.test(spec.label || ''))
                     key.button.add_style_class_name('alpha-key');

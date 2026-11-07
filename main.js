@@ -106,6 +106,15 @@ indicator.set_margin_top(1);
 indicator.set_margin_right(4);
 grid.attach(indicator, 2, 0, 1, 1);
 }
+if (spec.alt) {
+const dot = new St.Label({text: '•', style: 'font-size: 9px; color: #888;'});
+dot.x_align = Clutter.ActorAlign.END;
+dot.y_align = Clutter.ActorAlign.END;
+dot.set_margin_bottom(1);
+dot.set_margin_right(3);
+grid.attach(dot, 2, 1, 1, 1);
+this._altDot = dot;
+}
 btn.set_child(content);
 if (spec.active)
 btn.add_style_pseudo_class('latched');
@@ -1197,6 +1206,7 @@ x_expand: false,
 rowBox.add_child(spacer);
 }
 row.forEach((spec) => {
+spec.alt = !!(this._specialChars && this._specialChars[spec.label]);
 const key = new LvOSKKey(spec);
 if (spec.type === 'char' && /^[a-zA-Z]$/.test(spec.label || ''))
 key.button.add_style_class_name('alpha-key');

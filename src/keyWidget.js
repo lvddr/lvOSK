@@ -120,6 +120,15 @@ export const LvOSKKey = GObject.registerClass({
             grid.attach(indicator, 2, 0, 1, 1);
         }
 
+        if (spec.alt) {
+            const dot = new St.Label({text: '•', style: 'font-size: 9px; color: #888;'});
+            dot.x_align = Clutter.ActorAlign.END;
+            dot.y_align = Clutter.ActorAlign.END;
+            dot.set_margin_bottom(1);
+            dot.set_margin_right(3);
+            grid.attach(dot, 2, 1, 1, 1);
+            this._altDot = dot;
+        }
         btn.set_child(content);
 
         // latched/active style for modifiers
