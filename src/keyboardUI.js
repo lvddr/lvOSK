@@ -899,7 +899,8 @@ export class KeyboardUI {
             }
 
             row.forEach((spec) => {
-                spec.alt = !!(this._specialChars && this._specialChars[spec.label]);
+                const alts = this._specialChars && this._specialChars[spec.label];
+                spec.alt = !!(alts && alts.some((ch) => ch !== String(spec.label || '').toUpperCase()));
                 const key = new LvOSKKey(spec);
                 if (spec.type === 'char' && /^[a-zA-Z]$/.test(spec.label || ''))
                     key.button.add_style_class_name('alpha-key');
