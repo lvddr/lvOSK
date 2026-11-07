@@ -5,7 +5,7 @@ import St from 'gi://St';
 
 export class InputController {
     constructor() {
-        const backend = Clutter.get_default_backend();
+        const backend = global.stage.context.get_backend();
         const seat = backend.get_default_seat();
         this._device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         this._modifiers = new Set();

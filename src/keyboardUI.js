@@ -157,7 +157,7 @@ export class KeyboardUI {
 
     _buildContainer() {
         this._container = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'lvosk-keyboard',
             reactive: true,
             can_focus: false,
@@ -173,7 +173,7 @@ export class KeyboardUI {
         // Body wrapper: two expanding spacers keep the body centered at its
         // natural width when the keypad is closed.
         this._gridWrapper = new St.BoxLayout({
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             x_expand: true,
             y_expand: true,
         });
@@ -183,7 +183,7 @@ export class KeyboardUI {
         this._gridWrapper.add_child(this._wrapLeft);
 
         this._body = new St.BoxLayout({
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             style_class: 'key-body',
             x_expand: false,
             y_expand: true,
@@ -198,7 +198,7 @@ export class KeyboardUI {
         this._body.add_child(this._bodyLeftPad);
 
         this._gridBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'key-grid',
             x_expand: false,
             y_expand: true,
@@ -209,7 +209,7 @@ export class KeyboardUI {
         this._body.add_child(this._midSpacer);
 
         this._keypadBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'keypad-grid',
             x_expand: false,
             y_expand: true,
@@ -257,7 +257,7 @@ export class KeyboardUI {
         const header = new St.BoxLayout({
             style_class: 'lvosk-keyboard-header',
             x_expand: true,
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
         });
 
         const leftGroup = new St.BoxLayout({style_class: 'header-left', });
@@ -884,7 +884,7 @@ export class KeyboardUI {
             row.forEach(k => { total += (k.width || 1); });
 
             const rowBox = new St.BoxLayout({
-                vertical: false,
+                orientation: Clutter.Orientation.HORIZONTAL,
                 style_class: isKeypad ? 'key-row keypad-row' : 'key-row',
             });
 
@@ -1318,7 +1318,7 @@ export class KeyboardUI {
         this._carouselFromKey = key;
         const box = new St.BoxLayout({
             style_class: 'lvosk-carousel',
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
         });
         this._carouselKeys = [];
         chars.forEach((ch) => {

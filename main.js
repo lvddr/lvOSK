@@ -306,7 +306,7 @@ LAYOUTS.keypad = [
 // ===== inputController.js =====
 class InputController {
 constructor() {
-const backend = Clutter.get_default_backend();
+const backend = global.stage.context.get_backend();
 const seat = backend.get_default_seat();
 this._device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 this._modifiers = new Set();
@@ -548,7 +548,7 @@ return Main.layoutManager.primaryMonitor || {width: 1920, height: 1080, x: 0, y:
 }
 _buildContainer() {
 this._container = new St.BoxLayout({
-vertical: true,
+orientation: Clutter.Orientation.VERTICAL,
 style_class: 'lvosk-keyboard',
 reactive: true,
 can_focus: false,
@@ -558,7 +558,7 @@ this._container.set_position(0, 10000);
 this._header = this._buildHeader();
 this._container.add_child(this._header);
 this._gridWrapper = new St.BoxLayout({
-vertical: false,
+orientation: Clutter.Orientation.HORIZONTAL,
 x_expand: true,
 y_expand: true,
 });
@@ -566,7 +566,7 @@ this._container.add_child(this._gridWrapper);
 this._wrapLeft = new St.Widget({x_expand: true});
 this._gridWrapper.add_child(this._wrapLeft);
 this._body = new St.BoxLayout({
-vertical: false,
+orientation: Clutter.Orientation.HORIZONTAL,
 style_class: 'key-body',
 x_expand: false,
 y_expand: true,
@@ -578,7 +578,7 @@ this._gridWrapper.add_child(this._wrapRight);
 this._bodyLeftPad = new St.Widget({width: 12});
 this._body.add_child(this._bodyLeftPad);
 this._gridBox = new St.BoxLayout({
-vertical: true,
+orientation: Clutter.Orientation.VERTICAL,
 style_class: 'key-grid',
 x_expand: false,
 y_expand: true,
@@ -587,7 +587,7 @@ this._body.add_child(this._gridBox);
 this._midSpacer = new St.Widget({width: 12});
 this._body.add_child(this._midSpacer);
 this._keypadBox = new St.BoxLayout({
-vertical: true,
+orientation: Clutter.Orientation.VERTICAL,
 style_class: 'keypad-grid',
 x_expand: false,
 y_expand: true,
@@ -626,7 +626,7 @@ _buildHeader() {
 const header = new St.BoxLayout({
 style_class: 'lvosk-keyboard-header',
 x_expand: true,
-vertical: false,
+orientation: Clutter.Orientation.HORIZONTAL,
 });
 const leftGroup = new St.BoxLayout({style_class: 'header-left', });
 this._settingsBtn = new St.Button({style_class: 'lvosk-header-button', child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 15})});
@@ -1185,7 +1185,7 @@ row = row.slice(1);
 let total = leftOffset;
 row.forEach(k => { total += (k.width || 1); });
 const rowBox = new St.BoxLayout({
-vertical: false,
+orientation: Clutter.Orientation.HORIZONTAL,
 style_class: isKeypad ? 'key-row keypad-row' : 'key-row',
 });
 const unit = this._unitWidth(total, width, isKeypad);
@@ -1573,7 +1573,7 @@ this._carouselActiveKey = null;
 this._carouselFromKey = key;
 const box = new St.BoxLayout({
 style_class: 'lvosk-carousel',
-vertical: false,
+orientation: Clutter.Orientation.HORIZONTAL,
 });
 this._carouselKeys = [];
 chars.forEach((ch) => {
