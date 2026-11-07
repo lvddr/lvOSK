@@ -1233,8 +1233,11 @@ if (spec.type === 'action' && spec.action === 'shift') {
 return;
 }
 if (spec.type === 'char' && this._specialChars && this._specialChars[spec.label]) {
+key._longPressed = true;
 return;
 }
+if (spec.type === 'char' && /^[a-zA-Z]$/.test(spec.label || ''))
+return;
 if (!spec.secondary)
 return;
 key._longPressed = true;

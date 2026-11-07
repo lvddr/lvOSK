@@ -946,8 +946,12 @@ export class KeyboardUI {
             }
             // Letters with XKB special characters use carousel
             if (spec.type === 'char' && this._specialChars && this._specialChars[spec.label]) {
+                key._longPressed = true;
                 return;
             }
+            // Letters never input their (numeric) secondary via long-press.
+            if (spec.type === 'char' && /^[a-zA-Z]$/.test(spec.label || ''))
+                return;
             if (!spec.secondary)
                 return;
             key._longPressed = true;
